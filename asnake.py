@@ -1,7 +1,7 @@
 import logging
 import random
 from collections import deque
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 
 from snakepit.robot_snake import RobotSnake
 
@@ -88,9 +88,9 @@ class MyRobotSnake(RobotSnake):
     def __init__(self, *args, **kwargs):
         super(MyRobotSnake, self).__init__(*args, **kwargs)
         self.snakes_by_color = {}  # type: Dict[int, AliveSnake]
-        self.my_snake = None
+        self.my_snake = None  # type: Optional[AliveSnake]
 
-    def world_get(self, position):
+    def world_get(self, position) -> Tuple[str, Optional[int]]:
         """Get a state of world at given position.
 
         This does bounds checks and returns stones for positions outside of the play area to simplify the code.
@@ -140,7 +140,7 @@ class MyRobotSnake(RobotSnake):
             for x in range(self.world.SIZE_X):
                 yield IntTuple(x, y)
 
-    def extract_snakes(self) -> List[AliveSnake]:
+    def extract_snakes(self):
         """Update positions of all snakes in the world"""
         tails_by_color = {}
         for position in self.world_positions():
@@ -153,7 +153,7 @@ class MyRobotSnake(RobotSnake):
             if char in self.CH_HEAD:
                 needs_trace = False
                 if color in self.snakes_by_color:
-                    snake = self.snakes_by_color[color]  # type: AliveSnake
+                    snake = self.snakes_by_color[color]
 
                     if position in neighbours(snake.head_pos):
                         snake.head_history.appendleft(snake.head_pos)
