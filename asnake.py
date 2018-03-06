@@ -196,15 +196,16 @@ class GameState:
         return segments
 
     def mark_dead(self, dead_color: int):
-        replacement = {
-            RobotSnake.CH_HEAD: RobotSnake.CH_DEAD_HEAD,
-            RobotSnake.CH_BODY: RobotSnake.CH_DEAD_BODY,
-            RobotSnake.CH_TAIL: RobotSnake.CH_DEAD_TAIL,
-        }
-        for position in self.world_positions():
-            char, color = self.world_get(position)
-            if char in RobotSnake.BODY_CHARS and color == dead_color:
-                self.world_set(position, (replacement[char], 0))
+        trans = bytes.maketrans(bytes([
+            self._encode_value((RobotSnake.CH_HEAD, dead_color)),
+            self._encode_value((RobotSnake.CH_BODY, dead_color)),
+            self._encode_value((RobotSnake.CH_TAIL, dead_color)),
+        ]), bytes([
+            self._encode_value((RobotSnake.CH_DEAD_HEAD, 0)),
+            self._encode_value((RobotSnake.CH_DEAD_BODY, 0)),
+            self._encode_value((RobotSnake.CH_DEAD_TAIL, 0)),
+        ]))
+        self.world = self.world.translate(trans)
         self.snakes_by_color[dead_color].alive = False
 
 
