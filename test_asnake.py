@@ -30,11 +30,12 @@ def parse_world(lines: List[str]) -> Tuple[List[List[Tuple[str, int]]], IntTuple
     return rows, IntTuple(size_x, size_y)
 
 
-def serialize_world(world: List[List[Tuple[str, int]]]) -> List[str]:
+def serialize_world(state: GameState) -> List[str]:
     """Serialize world data to lines"""
-    return [''.join('{}{}'.format(char, ' ' if color < 1 or color > 9 else str(color))
-                    for char, color in row)
-            for row in world]
+    def describe(x, y):
+        char, color = state.world_get(IntTuple(x, y))
+        return '{}{}'.format(char, ' ' if color < 1 or color > 9 else str(color))
+    return [''.join(describe(x, y) for x in range(state.world_size.x)) for y in range(state.world_size.y)]
 
 
 def test_parse_world():
@@ -56,12 +57,12 @@ def test_parse_world():
 
 
 def test_serialize_world():
-    lines = serialize_world([
+    lines = serialize_world(GameState([
         [(' ', 0), (' ', 0), (' ', 0), (' ', 0)],
         [(' ', 0), ('$', 1), ('*', 1), ('@', 1)],
         [(' ', 0), (' ', 0), (' ', 0), (' ', 0)],
         [(' ', 0), (' ', 0), (' ', 0), (' ', 0)],
-    ])
+    ], IntTuple(4, 4), {}))
     assert lines == [
         '        ',
         '  $1*1@1',
@@ -88,7 +89,7 @@ def test_advance_game_simple_move():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '    $1*1',
         '      @1',
@@ -120,7 +121,7 @@ def test_advance_game_simple_grow():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  $1*1*1',
         '      @1',
@@ -153,7 +154,7 @@ def test_advance_game_simple_eat():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '    $1*1',
         '      @1',
@@ -187,7 +188,7 @@ def test_advance_game_simple_eat_growing():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  $1*1*1',
         '      @1',
@@ -221,7 +222,7 @@ def test_advance_game_simple_crash_wall():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_RIGHT})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  % + x ',
         '        ',
@@ -255,7 +256,7 @@ def test_advance_game_simple_crash_dead_tail():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  % + x ',
         '      % ',
@@ -289,7 +290,7 @@ def test_advance_game_simple_crash_dead_body():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  % + x ',
         '    % + ',
@@ -323,7 +324,7 @@ def test_advance_game_simple_crash_dead_head():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  % + x ',
         '  % + x ',
@@ -357,7 +358,7 @@ def test_advance_game_simple_suicide():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  % + + ',
         '    x + ',
@@ -391,7 +392,7 @@ def test_advance_game_simple_tail_grow_suicide():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  % + + ',
         '  x + + ',
@@ -426,7 +427,7 @@ def test_advance_game_simple_tail_chase():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  @1$1*1',
         '  *1*1*1',
@@ -469,7 +470,7 @@ def test_advance_game_double_move():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP, 2: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '      @1',
         '    $1*1',
         '    $2*2',
@@ -519,7 +520,7 @@ def test_advance_game_double_grow_one():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP, 2: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '      @1',
         '  $1*1*1',
         '    $2*2',
@@ -569,7 +570,7 @@ def test_advance_game_double_grow_two():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP, 2: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '      @1',
         '    $1*1',
         '  $2*2*2',
@@ -619,7 +620,7 @@ def test_advance_game_double_grow_both():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP, 2: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '      @1',
         '  $1*1*1',
         '  $2*2*2',
@@ -669,7 +670,7 @@ def test_advance_game_double_crash_to_dying_body():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_RIGHT, 2: DIR_UP})
     assert not uncertainty
 
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  % + x ',
         '% + x   ',
@@ -719,7 +720,7 @@ def test_advance_game_double_crash_to_dying_body2():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_RIGHT})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '% + x   ',
         '  % + x ',
@@ -769,7 +770,7 @@ def test_advance_game_double_crash_to_dying_tail():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_RIGHT, 2: DIR_UP})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  % + x ',
         '+ x     ',
@@ -819,7 +820,7 @@ def test_advance_game_double_crash_to_dying_tail2():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_RIGHT})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '%       ',
         '+ x     ',
         '  % + x ',
@@ -869,7 +870,7 @@ def test_advance_game_double_crash_to_dying_head():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_RIGHT, 2: DIR_UP})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  % + x ',
         '  % + x ',
@@ -919,7 +920,7 @@ def test_advance_game_double_crash_to_dying_head2():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_RIGHT})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  % + x ',
         '  % + x ',
@@ -969,7 +970,7 @@ def test_advance_game_double_frontal_crash():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_UP})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  % + x ',
         '  % + x ',
@@ -1019,7 +1020,7 @@ def test_advance_game_double_frontal_crash2():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP, 2: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '        ',
         '  % + x ',
         '  % + x ',
@@ -1069,7 +1070,7 @@ def test_advance_game_double_frontal_crash3():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_UP})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '    % + ',
         '      x ',
         '    % + ',
@@ -1119,7 +1120,7 @@ def test_advance_game_double_frontal_crash3_eat():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_UP})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '    % + ',
         '      x ',
         '    % + ',
@@ -1169,7 +1170,7 @@ def test_advance_game_double_tail_grow_kill():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '  x + % ',
         '  $2    ',
         '  *2*2*2',
@@ -1219,7 +1220,7 @@ def test_advance_game_double_tail_chase():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '  *1$1  ',
         '  @1    ',
         '  $2*2*2',
@@ -1269,7 +1270,7 @@ def test_advance_game_double_tail_chase_loop():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_UP})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '  *1*1$1',
         '  @1  @2',
         '  $2*2*2',
@@ -1320,7 +1321,7 @@ def test_advance_game_double_tail_chase_frontal_crash():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_RIGHT})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '  + + + ',
         '+ x   + ',
         '% % + + ',
@@ -1372,7 +1373,7 @@ def test_advance_game_double_tail_chase_frontal_crash_grow():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_RIGHT})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '  x + + ',
         'x %   + ',
         '+ + + + ',
@@ -1423,7 +1424,7 @@ def test_advance_game_double_body_kill():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '  x + % ',
         '  $2*2  ',
         '    @2  ',
@@ -1473,7 +1474,7 @@ def test_advance_game_double_body_kill2():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_DOWN})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '  x + % ',
         '$2*2    ',
         '  @2    ',
@@ -1523,7 +1524,7 @@ def test_advance_game_double_mutual_body_kill():
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_UP})
 
     assert not uncertainty
-    assert serialize_world(new_state.world) == [
+    assert serialize_world(new_state) == [
         '% + +   ',
         '  x x   ',
         '  + + % ',
