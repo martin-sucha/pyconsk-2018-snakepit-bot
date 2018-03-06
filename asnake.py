@@ -57,8 +57,9 @@ class IntTuple:
         return '<{!r}, {!r}>'.format(self.x, self.y)
 
 
-class AliveSnake:
-    def __init__(self, head_pos: IntTuple, tail_pos: IntTuple, color: int = 0):
+class Snake:
+    def __init__(self, alive: bool, head_pos: IntTuple, tail_pos: IntTuple, color: int = 0):
+        self.alive = alive
         self.head_pos = head_pos
         self.tail_pos = tail_pos
         self.length = None  # type: Optional[int]
@@ -87,11 +88,11 @@ def neighbours(position):
 
 class GameState:
     def __init__(self, world: List[List[Tuple[str, int]]], world_size: IntTuple,
-                 snakes_by_color: Dict[int, AliveSnake]):
+                 snakes_by_color: Dict[int, Snake]):
         self.world = [list(row) for row in world]
         self.world_size = world_size
         self.snakes_by_color = snakes_by_color
-        self.my_snake = None  # type: Optional[AliveSnake]
+        self.my_snake = None  # type: Optional[Snake]
 
     def world_positions(self):
         for y in range(self.world_size.y):
@@ -209,7 +210,7 @@ class MyRobotSnake(RobotSnake):
 
                     snake.head_pos = position
                 else:
-                    snake = new_state.snakes_by_color[color] = AliveSnake(position, tails_by_color[color], color)
+                    snake = new_state.snakes_by_color[color] = Snake(True, position, tails_by_color[color], color)
                     needs_trace = True
 
                 old_tail_pos = old_tails_by_color.get(color)
@@ -225,6 +226,11 @@ class MyRobotSnake(RobotSnake):
                     snake.head_history = deque(path[1:])
                     snake.grow = 0
                     snake.grow_uncertain = True
+
+        alive_snake_colors = set(tails_by_color.keys())
+        for color, snake in new_state.snakes_by_color.items():
+            if color not in alive_snake_colors:
+                snake.alive = False
 
         if new_state.my_snake is None:
             new_state.my_snake = new_state.snakes_by_color[my_color]
@@ -249,7 +255,7 @@ class MyRobotSnake(RobotSnake):
         logger.info('Updating snakes')
         game_state = self.observe_state_changes(self.old_state, self.world, self.color)
         for snake in game_state.snakes_by_color.values():
-            logger.info('{!r} {!r}'.format(snake, snake.score))
+            logger.info('{!r} {!r} {}'.format(snake, snake.score, 'alive' if snake.alive else 'dead'))
 
         logger.info('Selecting next move')
 
