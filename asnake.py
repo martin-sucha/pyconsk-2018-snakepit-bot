@@ -2,9 +2,12 @@ import logging
 import random
 from collections import deque, defaultdict
 from fractions import Fraction
+from itertools import product
 from typing import List, Optional, Dict, Tuple
 
 import copy
+
+import time
 
 from snakepit.robot_snake import RobotSnake
 
@@ -241,11 +244,13 @@ class MyRobotSnake(RobotSnake):
                                 snake.score += old_yummy
                     else:
                         needs_trace = True
+                        logger.info('Snake {} needs trace because of head position')
 
                     snake.head_pos = position
                 else:
                     snake = new_state.snakes_by_color[color] = Snake(True, position, tails_by_color[color], color)
                     needs_trace = True
+                    logger.info('Detected new snake {}')
 
                 old_tail_pos = old_tails_by_color.get(color)
                 if snake.grow_uncertain and old_tail_pos is not None and old_tail_pos != snake.tail_pos:
@@ -405,6 +410,26 @@ class MyRobotSnake(RobotSnake):
 
         return new_state, uncertainty
 
+    def search_move_space(self, depth, game_state, heuristic):
+        moves = [DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT]
+        alive_snakes = [snake for snake in game_state.snakes_by_color.values() if snake.alive]
+        if depth == 0 or not alive_snakes:
+            return heuristic(game_state), None
+        best_move = None
+        best_score = None
+        for combination in product(moves, repeat=len(alive_snakes)):
+            snake_directions = {snake.color: combination[index] for index, snake in enumerate(alive_snakes)}
+            new_state, uncertainty = self.advance_game(game_state, snake_directions)
+            if uncertainty:
+                score = heuristic(new_state)
+            else:
+                score, _ = self.search_move_space(depth - 1, new_state, heuristic)
+            logger.info('- {!r} {!r} {!r}'.format(snake_directions, uncertainty, score))
+            if best_move is None or score > best_score:
+                best_move = snake_directions
+                best_score = score
+        return best_score, best_move
+
     def next_direction(self, initial=False):
         """
         This method sends the next direction of the robot snake to the server.
@@ -427,55 +452,24 @@ class MyRobotSnake(RobotSnake):
 
         logger.info('Selecting next move')
 
-        def next_turn_occupied(position):
-            """Return a fraction how likely a position will be occupied next turn"""
-            char, color = game_state.world_get(position)
-            rv_sum = Fraction(0)
-            if char in self.OCCUPIED_CHARS:
-                rv_sum += 1
-            elif char == RobotSnake.CH_TAIL:
-                if game_state.snakes_by_color[color].grow_uncertain:
-                    rv_sum += Fraction(1, 2)  # we don't know whether it will grow or not
-                elif game_state.snakes_by_color[color].grow > 0:
-                    # the snake at this tail will definitely grow
-                    rv_sum += 1
-                elif color != self.color:
-                    # the snake may still eat something in the next turn, which will leave the tail in place
-                    for neighbour in neighbours(game_state.snakes_by_color[color].head_pos):
-                        if game_state.world_yummy(neighbour):
-                            rv_sum += Fraction(1, 3)
-            for snake in game_state.snakes_by_color.values():
-                if snake.color == self.color:
-                    continue
-                possibilities = []
-                for neighbour in neighbours(snake.head_pos):
-                    neighbour_char, neighbour_color = game_state.world_get(neighbour)
-                    if neighbour_char not in self.OCCUPIED_CHARS:
-                        possibilities.append(neighbour)
-                for possibility in possibilities:
-                    if possibility == position:
-                        rv_sum += Fraction(1, len(possibilities))
-            return rv_sum
+        def heuristic(state):
+            my_snake = state.snakes_by_color[self.color]
+            me_alive = my_snake.alive
+            opponents_alive = len([snake for snake in state.snakes_by_color.values()
+                                   if snake.color != self.color and snake.alive])
+            my_score = my_snake.score
+            opponents_score = sum(snake.score for snake in state.snakes_by_color.values()
+                                  if snake.color != self.color)
+            return me_alive, -opponents_alive, my_score, -opponents_score
 
-        candidates = []  # next_head_positions where I won't definitely die
-        for neighbour in neighbours(game_state.my_snake.head_pos):
-            score = next_turn_occupied(neighbour)
-            candidates.append((score, neighbour))
+        start_time = time.monotonic()
+        best_score, best_directions = self.search_move_space(3, game_state, heuristic)
+        end_time = time.monotonic()
+        best_move = best_directions[self.color]
 
-        if not candidates:
-            # we don't have any option where to move and die after the turn
-            return None
-
-        min_score = min(x[0] for x in candidates)
-        logger.info("Min score: " + repr(min_score))
-        candidates2 = [candidate for score, candidate in candidates if score == min_score]
-
-        next_move = random.choice(candidates2)
-
-        relative_move = (next_move - game_state.my_snake.head_pos)
+        logger.info('Decision took {} milliseconds'.format((end_time-start_time)*1000))
         logger.info('My position: ' + repr(game_state.my_snake.head_pos))
-        logger.info('Candidates: ' + repr(candidates))
-        logger.info('Next move: ' + repr(relative_move))
+        logger.info('Next move {!r} score {!r}'.format(best_move, best_score))
 
         # copy the old version of the world for reference
         self.old_state = game_state
@@ -483,14 +477,14 @@ class MyRobotSnake(RobotSnake):
         # convert relative move to one of the documented return values
         # we could have converted to snakepit.datatypes.Vector directly, but it is not documented that it will be
         # accessible, so it's better to be safe than sorry
-        if relative_move == DIR_UP:
+        if best_move == DIR_UP:
             return self.UP
-        elif relative_move == DIR_RIGHT:
+        elif best_move == DIR_RIGHT:
             return self.RIGHT
-        elif relative_move == DIR_DOWN:
+        elif best_move == DIR_DOWN:
             return self.DOWN
-        elif relative_move == DIR_LEFT:
+        elif best_move == DIR_LEFT:
             return self.LEFT
         else:
-            logger.error('Invalid value of relative_move, going in the same direction')
+            logger.error('Invalid value of best_move, falling back to the same direction')
             return None
