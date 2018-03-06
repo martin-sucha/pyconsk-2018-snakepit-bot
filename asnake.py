@@ -4,6 +4,8 @@ from collections import deque, defaultdict
 from fractions import Fraction
 from typing import List, Optional, Dict, Tuple
 
+import copy
+
 from snakepit.robot_snake import RobotSnake
 
 
@@ -53,8 +55,17 @@ class IntTuple:
             return NotImplemented
         return self.x != other.x or self.y != other.y
 
+    def __hash__(self) -> int:
+        return hash((self.x, self.y))
+
     def __repr__(self):
         return '<{!r}, {!r}>'.format(self.x, self.y)
+
+
+DIR_UP = IntTuple(0, -1)
+DIR_RIGHT = IntTuple(1, 0)
+DIR_DOWN = IntTuple(0, 1)
+DIR_LEFT = IntTuple(-1, 0)
 
 
 class Snake:
@@ -112,6 +123,17 @@ class GameState:
             return RobotSnake.CH_STONE, 0
         return self.world[position.y][position.x]
 
+    def world_set(self, position: IntTuple, value: Tuple[str, int]):
+        """Set the state of world at given position.
+
+        This does bounds checks.
+        """
+        if position.x < 0 or position.x >= self.world_size.x:
+            return
+        if position.y < 0 or position.y >= self.world_size.y:
+            return
+        self.world[position.y][position.x] = value
+
     def world_yummy(self, position: IntTuple) -> int:
         """Return yummy value at the given position. If the position is not edible, return 0"""
         char, color = self.world_get(position)
@@ -150,6 +172,18 @@ class GameState:
             segments.append(paths[0])
 
         return segments
+
+    def mark_dead(self, dead_color: int):
+        replacement = {
+            RobotSnake.CH_HEAD: RobotSnake.CH_DEAD_HEAD,
+            RobotSnake.CH_BODY: RobotSnake.CH_DEAD_BODY,
+            RobotSnake.CH_TAIL: RobotSnake.CH_DEAD_TAIL,
+        }
+        for position in self.world_positions():
+            char, color = self.world_get(position)
+            if char in RobotSnake.BODY_CHARS and color == dead_color:
+                self.world_set(position, (replacement[char], 0))
+        self.snakes_by_color[dead_color].alive = False
 
 
 class MyRobotSnake(RobotSnake):
@@ -203,7 +237,7 @@ class MyRobotSnake(RobotSnake):
                             old_yummy = old_state.world_yummy(position)
                             if old_yummy > 0:
                                 logger.info('Snake {} has eaten {} last turn'.format(snake.color, old_yummy))
-                                snake.grow += old_yummy - 1  # -1 because that one was already done by the game
+                                snake.grow += old_yummy
                                 snake.score += old_yummy
                     else:
                         needs_trace = True
@@ -236,6 +270,140 @@ class MyRobotSnake(RobotSnake):
             new_state.my_snake = new_state.snakes_by_color[my_color]
 
         return new_state
+
+    @staticmethod
+    def advance_game(state: GameState, snake_directions: Dict[int, IntTuple]) -> Tuple[GameState, bool]:
+        """Advance the state of game one tick, based on the selected snake directions.
+
+        :param state: starting game state
+        :param snake_directions: a dictionary from snake color to direction of movement
+        :return: a new game state based on the directions
+        """
+        next_snake_heads = {color: state.snakes_by_color[color].head_pos + direction
+                            for color, direction in snake_directions.items()}
+        tails = {snake.tail_pos: color
+                 for color, snake in state.snakes_by_color.items()}
+        new_state = copy.deepcopy(state)
+        uncertainty = False  # True if we are not certain things will go this way
+
+        kills = defaultdict(list)  # dict from killer to killed color
+        dies = set()
+        moves = set()
+
+        def should_grow(snake):
+            nonlocal uncertainty
+            if len(snake.head_history) != snake.length - 1:
+                # we don't know where tail will move, leave it where it is
+                uncertainty = True
+                return True
+            if snake.grow_uncertain:
+                uncertainty = True
+                return True
+            return snake.grow
+
+        dependencies = {}  # dict from color to color
+        for color, pos in next_snake_heads.items():
+            if pos in tails:
+                dependencies[color] = tails[pos]
+
+        # Snakes can crash heads frontally: $*@ @*$ -> %+x+%, find those cases
+        # note these still might depend on another snake
+        next_snake_heads_inv = defaultdict(list)
+        for color, pos in next_snake_heads.items():
+            next_snake_heads_inv[pos].append(color)
+
+        # topological sort dependencies
+        # this is special cased for two-snake game, TODO add support for multiple players later
+        colors = list(next_snake_heads.keys())
+        if len(colors) == 2 and dependencies.get(colors[0]) == colors[1] and dependencies.get(colors[1]) == colors[0]:
+            # tail cycle, we need to break it explicitly
+            snake0 = state.snakes_by_color[colors[0]]
+            snake1 = state.snakes_by_color[colors[1]]
+            if should_grow(snake0) or should_grow(snake1):
+                # snake0 and snake1 both die and don't move, neither gets points
+                dies.add(colors[0])
+                dies.add(colors[1])
+            else:
+                moves.add(colors[0])
+                moves.add(colors[1])
+        else:
+            tsorted = sorted(colors, key=lambda color: 1 if color in dependencies else 0)
+
+            for color in tsorted:
+                if color in dependencies:
+                    # tail chase
+                    other_snake = state.snakes_by_color[dependencies[color]]
+                    if color == dependencies[color]:
+                        # self-chase, pretend we can move
+                        moves.add(color)
+                    if should_grow(other_snake) or not dependencies[color] in moves:
+                        # snake dies, does not move
+                        if color == dependencies[color]:
+                            moves.remove(color)  # we pretended to move
+                        else:
+                            # other_snake gets credit for killing us
+                            kills[other_snake.color].append(color)
+                        dies.add(color)
+                        continue
+                    # fallthrough
+                old_char, old_color = state.world_get(next_snake_heads[color])
+                if old_char in RobotSnake.DEAD_BODY_CHARS or old_char == RobotSnake.CH_STONE:
+                    # snake dies, does not move, does not get points
+                    dies.add(color)
+                    continue
+                if old_char in (RobotSnake.CH_HEAD, RobotSnake.CH_BODY):
+                    # snake dies, does not move, old_color possibly gets points (if does not die in this turn)
+                    dies.add(color)
+                    kills[old_color].append(color)
+                    continue
+                if len(next_snake_heads_inv[next_snake_heads[color]]) > 1:
+                    # frontal collision. snake dies, moves, does not get points
+                    dies.add(color)
+                    moves.add(color)
+                    continue
+                # did not crash into anything, so lives, moves
+                if old_char.isdigit():
+                    new_snake = new_state.snakes_by_color[color]
+                    new_snake.grow += int(old_char)
+                    new_snake.score += int(old_char)
+                moves.add(color)
+
+        # Move snakes
+        needs_void = set()
+        avoids_void = set()
+        for color in moves:
+            snake = state.snakes_by_color[color]
+            new_snake = new_state.snakes_by_color[color]
+            if should_grow(snake):
+                new_snake.length += 1
+                new_snake.grow -= 1
+            else:
+                old_tail = new_snake.head_history.pop()
+                new_tail = new_snake.head_history[-1]
+                needs_void.add(old_tail)
+                new_state.world_set(new_tail, (RobotSnake.CH_TAIL, new_snake.color))
+                new_snake.tail_pos = new_tail
+            new_snake.head_history.appendleft(new_snake.head_pos)
+            new_state.world_set(new_snake.head_pos, (RobotSnake.CH_BODY, new_snake.color))
+            new_snake.head_pos = next_snake_heads[color]
+            new_state.world_set(new_snake.head_pos, (RobotSnake.CH_HEAD, new_snake.color))
+            avoids_void.add(new_snake.head_pos)
+
+        # Cleanup any tails that were not overwritten
+        for void_pos in needs_void - avoids_void:
+            new_state.world_set(void_pos, (RobotSnake.CH_VOID, 0))
+
+        # Repaint dead snakes and mark them as not alive
+        for color in dies:
+            new_state.mark_dead(color)
+
+        # Resolve points for killing
+        for color in dies:
+            kills.pop(color, None)
+        for killer_color, victims in kills.items():
+            new_state.snakes_by_color[killer_color].score += len(victims) * 1000
+
+        return new_state, uncertainty
 
     def next_direction(self, initial=False):
         """
@@ -315,13 +483,13 @@ class MyRobotSnake(RobotSnake):
         # convert relative move to one of the documented return values
         # we could have converted to snakepit.datatypes.Vector directly, but it is not documented that it will be
         # accessible, so it's better to be safe than sorry
-        if relative_move == IntTuple(0, -1):
+        if relative_move == DIR_UP:
             return self.UP
-        elif relative_move == IntTuple(1, 0):
+        elif relative_move == DIR_RIGHT:
             return self.RIGHT
-        elif relative_move == IntTuple(0, 1):
+        elif relative_move == DIR_DOWN:
             return self.DOWN
-        elif relative_move == IntTuple(-1, 0):
+        elif relative_move == DIR_LEFT:
             return self.LEFT
         else:
             logger.error('Invalid value of relative_move, going in the same direction')

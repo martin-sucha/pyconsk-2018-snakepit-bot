@@ -1,3 +1,5 @@
+from typing import List, Tuple
+
 from snakepit.datatypes import Vector
 
 
@@ -6,10 +8,10 @@ class World:
     CH_VOID = ' '
     CH_STONE = '#'
 
-    def __init__(self, size_x: int, size_y: int):
+    def __init__(self, size_x: int, size_y: int, data: List[List[Tuple[str, int]]]):
         self.SIZE_X = size_x
         self.SIZE_Y = size_y
-        self.worldddata = [[self.CH_VOID for x in range(self.SIZE_X)] for y in range(self.SIZE_Y)]
+        self.worldddata = data
 
     def __getitem__(self, item: int):
         return self.worlddata[item]
@@ -42,8 +44,8 @@ class BaseSnake:
 
 
 class RobotSnake(BaseSnake):
-    def __init__(self):
-        self._world = World()
+    def __init__(self, world: World):
+        self._world = world
 
     @property
     def world(self):

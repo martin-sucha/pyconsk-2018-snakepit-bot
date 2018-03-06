@@ -1,2 +1,4 @@
 .idea
 .py[co]
+.pytest_cache
+__pycache__
