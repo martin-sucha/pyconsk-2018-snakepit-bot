@@ -65,6 +65,7 @@ class AliveSnake:
         self.color = color
         self.grow_uncertain = True  # if true, the snake might still grow as we have incomplete observations
         self.grow = 0  # if this is >0, the snake will definitely grow for at least the specfied amount of ticks
+        self.score = 0
 
         # history of head positions, up to and including tail. may end earlier than tail though, if we joined later in
         # the game and we have not observed the previous movements of the snake. does not contain the current head
@@ -202,6 +203,7 @@ class MyRobotSnake(RobotSnake):
                             if old_yummy > 0:
                                 logger.info('Snake {} has eaten {} last turn'.format(snake.color, old_yummy))
                                 snake.grow += old_yummy - 1  # -1 because that one was already done by the game
+                                snake.score += old_yummy
                     else:
                         needs_trace = True
 
@@ -247,7 +249,7 @@ class MyRobotSnake(RobotSnake):
         logger.info('Updating snakes')
         game_state = self.observe_state_changes(self.old_state, self.world, self.color)
         for snake in game_state.snakes_by_color.values():
-            logger.info(repr(snake))
+            logger.info('{!r} {!r}'.format(snake, snake.score))
 
         logger.info('Selecting next move')
 
