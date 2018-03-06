@@ -14,6 +14,8 @@ logger = logging.getLogger('mysnake')
 class IntTuple:
     """Helper for nicer position/vector arithmetics"""
 
+    __slots__ = 'x', 'y'
+
     def __init__(self, x, y):
         self.x = x
         self.y = y
@@ -23,26 +25,10 @@ class IntTuple:
             return NotImplemented
         return IntTuple(self.x + other.x, self.y + other.y)
 
-    def __iadd__(self, other):
-        if not isinstance(other, IntTuple):
-            return NotImplemented
-        self.x += other.x
-        self.y += other.y
-
-        return self
-
     def __sub__(self, other):
         if not isinstance(other, IntTuple):
             return NotImplemented
         return IntTuple(self.x - other.x, self.y - other.y)
-
-    def __isub__(self, other):
-        if not isinstance(other, IntTuple):
-            return NotImplemented
-        self.x -= other.x
-        self.y -= other.y
-
-        return self
 
     def __eq__(self, other):
         if not isinstance(other, IntTuple):
