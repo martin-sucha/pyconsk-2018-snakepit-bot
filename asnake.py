@@ -1,9 +1,7 @@
 import logging
 from collections import deque, defaultdict
 from itertools import product
-from typing import List, Optional, Dict, Tuple
-
-import copy
+from typing import List, Optional, Dict, Tuple, Union
 
 import time
 
@@ -85,6 +83,15 @@ class Snake:
         # position.
         self.head_history = deque()
 
+    def copy(self):
+        copied = Snake(self.alive, self.head_pos, self.tail_pos, self.color)
+        copied.length = self.length
+        copied.grow_uncertain = self.grow_uncertain
+        copied.grow = self.grow
+        copied.score = self.score
+        copied.head_history = self.head_history.copy()
+        return copied
+
     def __repr__(self):
         return '<{!r} snake of length {!r} at {!r} grow {}{!r}>'.format(self.color, self.length, self.head_pos,
                                                                         '~' if self.grow_uncertain else '', self.grow)
@@ -98,13 +105,41 @@ def neighbours(position):
     yield position + IntTuple(-1, 0)  # left
 
 
+GAME_CHARS = ''.join([RobotSnake.CH_VOID, RobotSnake.CH_STONE, RobotSnake.CH_HEAD, RobotSnake.CH_BODY,
+                      RobotSnake.CH_TAIL, RobotSnake.CH_DEAD_HEAD, RobotSnake.CH_DEAD_BODY, RobotSnake.CH_DEAD_TAIL,
+                      '1', '2', '3', '4', '5', '6', '7', '8', '9'])
+
+
 class GameState:
-    def __init__(self, world: List[List[Tuple[str, int]]], world_size: IntTuple,
-                 snakes_by_color: Dict[int, Snake]):
-        self.world = [list(row) for row in world]
-        self.world_size = world_size
-        self.snakes_by_color = snakes_by_color
-        self.my_snake = None  # type: Optional[Snake]
+    def __init__(self, world: Union[List[List[Tuple[str, int]]], 'GameState'], world_size: Optional[IntTuple] = None,
+                 snakes_by_color: Optional[Dict[int, Snake]] = None):
+        if isinstance(world, GameState):
+            self.world_size = world.world_size
+            self.world = bytearray(world.world)
+            self.snakes_by_color = {k: v.copy() for k, v in world.snakes_by_color.items()}
+            self.my_snake = None  # type: Optional[Snake]
+            if world.my_snake is not None:
+                self.my_snake = self.snakes_by_color[world.my_snake.color]
+        else:
+            self.world_size = world_size
+            self.world = bytearray(world_size.x * world_size.y)
+            for pos in self.world_positions():
+                self.world_set(pos, world[pos.y][pos.x])
+            self.snakes_by_color = snakes_by_color
+            self.my_snake = None  # type: Optional[Snake]
+
+    @staticmethod
+    def _encode_value(value: Tuple[str, int]) -> int:
+        """Encode a given tuple of char, color to a single byte"""
+        char, color = value
+        try:
+            return GAME_CHARS.index(char) | (color << 5)
+        except ValueError:
+            raise ValueError('Cannot encode {!r}'.format(value))
+
+    @staticmethod
+    def _decode_value(byte: int) -> Tuple[str, int]:
+        return GAME_CHARS[byte & 0xf], byte >> 5
 
     def world_positions(self):
         for y in range(self.world_size.y):
@@ -122,7 +157,7 @@ class GameState:
             return RobotSnake.CH_STONE, 0
         if position.y < 0 or position.y >= self.world_size.y:
             return RobotSnake.CH_STONE, 0
-        return self.world[position.y][position.x]
+        return self._decode_value(self.world[position.y*self.world_size.x+position.x])
 
     def world_set(self, position: IntTuple, value: Tuple[str, int]):
         """Set the state of world at given position.
@@ -133,7 +168,7 @@ class GameState:
             return
         if position.y < 0 or position.y >= self.world_size.y:
             return
-        self.world[position.y][position.x] = value
+        self.world[position.y * self.world_size.x + position.x] = self._encode_value(value)
 
     def world_yummy(self, position: IntTuple) -> int:
         """Return yummy value at the given position. If the position is not edible, return 0"""
@@ -286,7 +321,7 @@ class MyRobotSnake(RobotSnake):
                             for color, direction in snake_directions.items()}
         tails = {snake.tail_pos: color
                  for color, snake in state.snakes_by_color.items()}
-        new_state = copy.deepcopy(state)
+        new_state = GameState(state)  # copy state
         uncertainty = False  # True if we are not certain things will go this way
 
         kills = defaultdict(list)  # dict from killer to killed color
