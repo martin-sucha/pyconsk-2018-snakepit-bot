@@ -84,16 +84,18 @@ def neighbours(position):
     yield position + IntTuple(-1, 0)  # left
 
 
-class MyRobotSnake(RobotSnake):
-    OCCUPIED_CHARS = RobotSnake.DEAD_BODY_CHARS\
-        .union(RobotSnake.BODY_CHARS).union([RobotSnake.CH_STONE])\
-        .difference(RobotSnake.CH_TAIL)
-
-    def __init__(self, *args, **kwargs):
-        super(MyRobotSnake, self).__init__(*args, **kwargs)
-        self.snakes_by_color = {}  # type: Dict[int, AliveSnake]
+class GameState:
+    def __init__(self, world: List[List[Tuple[str, int]]], world_size: IntTuple,
+                 snakes_by_color: Dict[int, AliveSnake]):
+        self.world = [list(row) for row in world]
+        self.world_size = world_size
+        self.snakes_by_color = snakes_by_color
         self.my_snake = None  # type: Optional[AliveSnake]
-        self.old_world = None
+
+    def world_positions(self):
+        for y in range(self.world_size.y):
+            for x in range(self.world_size.x):
+                yield IntTuple(x, y)
 
     def world_get(self, position: IntTuple) -> Tuple[str, int]:
         """Get the state of world at given position.
@@ -102,43 +104,15 @@ class MyRobotSnake(RobotSnake):
 
         :return tuple of (world char, color)
         """
-        if position.x < 0 or position.x >= self.world.SIZE_X:
-            return self.CH_STONE, 0
-        if position.y < 0 or position.y >= self.world.SIZE_Y:
-            return self.CH_STONE, 0
+        if position.x < 0 or position.x >= self.world_size.x:
+            return RobotSnake.CH_STONE, 0
+        if position.y < 0 or position.y >= self.world_size.y:
+            return RobotSnake.CH_STONE, 0
         return self.world[position.y][position.x]
 
     def world_yummy(self, position: IntTuple) -> int:
         """Return yummy value at the given position. If the position is not edible, return 0"""
         char, color = self.world_get(position)
-        if char.isdigit():
-            return int(char)
-        return 0
-
-    def world_positions(self):
-        for y in range(self.world.SIZE_Y):
-            for x in range(self.world.SIZE_X):
-                yield IntTuple(x, y)
-
-    def old_world_get(self, position: IntTuple) -> Optional[Tuple[str, int]]:
-        """Get the state of world in a previous turn.
-
-        :return tuple of (world char, color)
-        """
-        if position.x < 0 or position.x >= self.world.SIZE_X:
-            return self.CH_STONE, 0
-        if position.y < 0 or position.y >= self.world.SIZE_Y:
-            return self.CH_STONE, 0
-        if self.old_world is None:
-            return None
-        return self.old_world[position.y][position.x]
-
-    def old_world_yummy(self, position: IntTuple) -> Optional[int]:
-        """Return yummy value at the given position in the previous turn. If the position is not edible return 0"""
-        old_value = self.old_world_get(position)
-        if old_value is None:
-            return None
-        char, color = old_value
         if char.isdigit():
             return int(char)
         return 0
@@ -162,7 +136,7 @@ class MyRobotSnake(RobotSnake):
                 if len(segments) > 1 and candidate_position == segments[-2]:
                     continue
                 candidate_char, candidate_color = self.world_get(candidate_position)
-                if candidate_char in self.BODY_CHARS and candidate_color == color:
+                if candidate_char in RobotSnake.BODY_CHARS and candidate_color == color:
                     paths.append(candidate_position)
 
             if len(paths) != 1:
@@ -175,47 +149,65 @@ class MyRobotSnake(RobotSnake):
 
         return segments
 
-    def extract_snakes(self):
-        """Update positions of all snakes in the world"""
+
+class MyRobotSnake(RobotSnake):
+    OCCUPIED_CHARS = RobotSnake.DEAD_BODY_CHARS\
+        .union(RobotSnake.BODY_CHARS).union([RobotSnake.CH_STONE])\
+        .difference(RobotSnake.CH_TAIL)
+
+    def __init__(self, *args, **kwargs):
+        super(MyRobotSnake, self).__init__(*args, **kwargs)
+        self.old_state = None  # type: Optional[GameState]
+
+    @staticmethod
+    def observe_state_changes(old_state: GameState, world, my_color: int) -> GameState:
+        """Observe what has changed since last turn and produce new game state"""
+        if old_state:
+            snakes_by_color = old_state.snakes_by_color
+        else:
+            snakes_by_color = {}
+        new_state = GameState(world, IntTuple(world.SIZE_X, world.SIZE_Y), snakes_by_color)
+
         # decrease grow by one
-        for snake in self.snakes_by_color.values():
+        for snake in new_state.snakes_by_color.values():
             snake.grow = max(0, snake.grow - 1)
 
         tails_by_color = {}
         old_tails_by_color = {}
         lengths_by_color = defaultdict(lambda: 0)
-        for position in self.world_positions():
-            char, color = self.world_get(position)
-            if char == self.CH_TAIL:
+        for position in new_state.world_positions():
+            char, color = new_state.world_get(position)
+            if char == RobotSnake.CH_TAIL:
                 tails_by_color[color] = position
-            if char in self.BODY_CHARS:
+            if char in RobotSnake.BODY_CHARS:
                 lengths_by_color[color] += 1
 
-        if self.old_world:
-            for position in self.world_positions():
-                old_char, old_color = self.old_world_get(position)
-                if old_char == self.CH_TAIL:
+        if old_state:
+            for position in old_state.world_positions():
+                old_char, old_color = old_state.world_get(position)
+                if old_char == RobotSnake.CH_TAIL:
                     old_tails_by_color[old_color] = position
 
-        for position in self.world_positions():
-            char, color = self.world_get(position)
-            if char in self.CH_HEAD:
+        for position in new_state.world_positions():
+            char, color = new_state.world_get(position)
+            if char in RobotSnake.CH_HEAD:
                 needs_trace = False
-                if color in self.snakes_by_color:
-                    snake = self.snakes_by_color[color]
+                if color in new_state.snakes_by_color:
+                    snake = new_state.snakes_by_color[color]
 
                     if position in neighbours(snake.head_pos):
                         snake.head_history.appendleft(snake.head_pos)
-                        old_yummy = self.old_world_yummy(position)
-                        if old_yummy is not None and old_yummy > 0:
-                            logger.info('Snake {} has eaten {} last turn'.format(snake.color, old_yummy))
-                            snake.grow += old_yummy - 1  # -1 because that one was already done by the game
+                        if old_state:
+                            old_yummy = old_state.world_yummy(position)
+                            if old_yummy > 0:
+                                logger.info('Snake {} has eaten {} last turn'.format(snake.color, old_yummy))
+                                snake.grow += old_yummy - 1  # -1 because that one was already done by the game
                     else:
                         needs_trace = True
 
                     snake.head_pos = position
                 else:
-                    snake = self.snakes_by_color[color] = AliveSnake(position, tails_by_color[color], color)
+                    snake = new_state.snakes_by_color[color] = AliveSnake(position, tails_by_color[color], color)
                     needs_trace = True
 
                 old_tail_pos = old_tails_by_color.get(color)
@@ -227,13 +219,15 @@ class MyRobotSnake(RobotSnake):
                 snake.length = lengths_by_color[color]
                 if needs_trace:
                     logger.info('Tracing snake {}'.format(snake.color))
-                    path = self.trace_snake_path(snake.head_pos)
+                    path = new_state.trace_snake_path(snake.head_pos)
                     snake.head_history = deque(path[1:])
                     snake.grow = 0
                     snake.grow_uncertain = True
 
-        if self.my_snake is None:
-            self.my_snake = self.snakes_by_color[self.color]
+        if new_state.my_snake is None:
+            new_state.my_snake = new_state.snakes_by_color[my_color]
+
+        return new_state
 
     def next_direction(self, initial=False):
         """
@@ -251,35 +245,35 @@ class MyRobotSnake(RobotSnake):
         More information can be found in the Snake documentation.
         """
         logger.info('Updating snakes')
-        self.extract_snakes()
-        for snake in self.snakes_by_color.values():
+        game_state = self.observe_state_changes(self.old_state, self.world, self.color)
+        for snake in game_state.snakes_by_color.values():
             logger.info(repr(snake))
 
         logger.info('Selecting next move')
 
         def next_turn_occupied(position):
             """Return a fraction how likely a position will be occupied next turn"""
-            char, color = self.world_get(position)
+            char, color = game_state.world_get(position)
             rv_sum = Fraction(0)
             if char in self.OCCUPIED_CHARS:
                 rv_sum += 1
-            elif char == self.CH_TAIL:
-                if self.snakes_by_color[color].grow_uncertain:
+            elif char == RobotSnake.CH_TAIL:
+                if game_state.snakes_by_color[color].grow_uncertain:
                     rv_sum += Fraction(1, 2)  # we don't know whether it will grow or not
-                elif self.snakes_by_color[color].grow > 0:
+                elif game_state.snakes_by_color[color].grow > 0:
                     # the snake at this tail will definitely grow
                     rv_sum += 1
                 elif color != self.color:
                     # the snake may still eat something in the next turn, which will leave the tail in place
-                    for neighbour in neighbours(self.snakes_by_color[color].head_pos):
-                        if self.world_yummy(neighbour):
+                    for neighbour in neighbours(game_state.snakes_by_color[color].head_pos):
+                        if game_state.world_yummy(neighbour):
                             rv_sum += Fraction(1, 3)
-            for snake in self.snakes_by_color.values():
+            for snake in game_state.snakes_by_color.values():
                 if snake.color == self.color:
                     continue
                 possibilities = []
                 for neighbour in neighbours(snake.head_pos):
-                    neighbour_char, neighbour_color = self.world_get(neighbour)
+                    neighbour_char, neighbour_color = game_state.world_get(neighbour)
                     if neighbour_char not in self.OCCUPIED_CHARS:
                         possibilities.append(neighbour)
                 for possibility in possibilities:
@@ -288,7 +282,7 @@ class MyRobotSnake(RobotSnake):
             return rv_sum
 
         candidates = []  # next_head_positions where I won't definitely die
-        for neighbour in neighbours(self.my_snake.head_pos):
+        for neighbour in neighbours(game_state.my_snake.head_pos):
             score = next_turn_occupied(neighbour)
             candidates.append((score, neighbour))
 
@@ -302,13 +296,13 @@ class MyRobotSnake(RobotSnake):
 
         next_move = random.choice(candidates2)
 
-        relative_move = (next_move - self.my_snake.head_pos)
-        logger.info('My position: ' + repr(self.my_snake.head_pos))
+        relative_move = (next_move - game_state.my_snake.head_pos)
+        logger.info('My position: ' + repr(game_state.my_snake.head_pos))
         logger.info('Candidates: ' + repr(candidates))
         logger.info('Next move: ' + repr(relative_move))
 
         # copy the old version of the world for reference
-        self.old_world = [list(row) for row in self.world]
+        self.old_state = game_state
 
         # convert relative move to one of the documented return values
         # we could have converted to snakepit.datatypes.Vector directly, but it is not documented that it will be
