@@ -71,6 +71,383 @@ def test_serialize_world():
     ]
 
 
+def test_observe_state_changes_first():
+    world, world_size = parse_world([
+        '        ',
+        '  $1*1@1',
+        '        ',
+        '        ',
+    ])
+
+    robot = MyRobotSnake(World(world_size.x, world_size.y, world))
+    game_state = robot.observe_state_changes(None, robot.world, 1)
+
+    assert game_state.world_size == IntTuple(4, 4)
+    my_snake = game_state.my_snake
+    assert my_snake is not None
+    assert my_snake.color == 1
+    assert my_snake.length == 3
+    assert list(my_snake.head_history) == [IntTuple(2, 1), IntTuple(1, 1)]
+    assert my_snake.grow_uncertain
+    assert my_snake.grow == 0
+    assert my_snake.alive
+    assert my_snake.score == 0
+    assert my_snake.head_pos == IntTuple(3, 1)
+    assert my_snake.tail_pos == IntTuple(1, 1)
+
+
+def test_observe_state_changes_nontraceable():
+    world, world_size = parse_world([
+        '        ',
+        '  @1*1*1',
+        '  *1*1*1',
+        '  *1*1$1',
+    ])
+
+    robot = MyRobotSnake(World(world_size.x, world_size.y, world))
+    game_state = robot.observe_state_changes(None, robot.world, 1)
+
+    assert game_state.world_size == IntTuple(4, 4)
+    my_snake = game_state.my_snake
+    assert my_snake is not None
+    assert my_snake.color == 1
+    assert my_snake.length == 9
+    assert list(my_snake.head_history) == []
+    assert my_snake.grow_uncertain
+    assert my_snake.grow == 0
+    assert my_snake.alive
+    assert my_snake.score == 0
+    assert my_snake.head_pos == IntTuple(1, 1)
+    assert my_snake.tail_pos == IntTuple(3, 3)
+
+
+def test_observe_state_changes_nontraceable2():
+    world, world_size = parse_world([
+        '@1*1    ',
+        '  *1*1*1',
+        '  *1*1*1',
+        '  *1*1$1',
+    ])
+
+    robot = MyRobotSnake(World(world_size.x, world_size.y, world))
+    game_state = robot.observe_state_changes(None, robot.world, 1)
+
+    assert game_state.world_size == IntTuple(4, 4)
+    my_snake = game_state.my_snake
+    assert my_snake is not None
+    assert my_snake.color == 1
+    assert my_snake.length == 11
+    assert list(my_snake.head_history) == [IntTuple(1, 0), IntTuple(1, 1)]
+    assert my_snake.grow_uncertain
+    assert my_snake.grow == 0
+    assert my_snake.alive
+    assert my_snake.score == 0
+    assert my_snake.head_pos == IntTuple(0, 0)
+    assert my_snake.tail_pos == IntTuple(3, 3)
+
+
+def test_observe_state_changes_grow_uncertain():
+    old_world, old_world_size = parse_world([
+        '        ',
+        '  $1*1@1',
+        '        ',
+        '        ',
+    ])
+    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1.length = 3
+    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.grow_uncertain = True
+    snake1.grow = 1
+    snake1.score = 5
+    old_state = GameState(old_world, old_world_size, {1: snake1})
+
+    world, world_size = parse_world([
+        '        ',
+        '  $1*1*1',
+        '      @1',
+        '        ',
+    ])
+
+    robot = MyRobotSnake(World(world_size.x, world_size.y, world))
+    game_state = robot.observe_state_changes(old_state, robot.world, 1)
+
+    assert game_state.world_size == IntTuple(4, 4)
+    my_snake = game_state.my_snake
+    assert my_snake is not None
+    assert my_snake.color == 1
+    assert my_snake.length == 4
+    assert list(my_snake.head_history) == [IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)]
+    assert my_snake.grow_uncertain
+    assert my_snake.grow == 0
+    assert my_snake.alive
+    assert my_snake.score == 5
+    assert my_snake.head_pos == IntTuple(3, 2)
+    assert my_snake.tail_pos == IntTuple(1, 1)
+
+
+def test_observe_state_changes_stop_growing():
+    old_world, old_world_size = parse_world([
+        '        ',
+        '  $1*1@1',
+        '        ',
+        '        ',
+    ])
+    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1.length = 3
+    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.grow_uncertain = True
+    snake1.grow = 0
+    snake1.score = 5
+    old_state = GameState(old_world, old_world_size, {1: snake1})
+
+    world, world_size = parse_world([
+        '        ',
+        '    $1*1',
+        '      @1',
+        '        ',
+    ])
+
+    robot = MyRobotSnake(World(world_size.x, world_size.y, world))
+    game_state = robot.observe_state_changes(old_state, robot.world, 1)
+
+    assert game_state.world_size == IntTuple(4, 4)
+    my_snake = game_state.my_snake
+    assert my_snake is not None
+    assert my_snake.color == 1
+    assert my_snake.head_pos == IntTuple(3, 2)
+    assert my_snake.tail_pos == IntTuple(2, 1)
+    assert my_snake.length == 3
+    assert list(my_snake.head_history) == [IntTuple(3, 1), IntTuple(2, 1)]
+    assert not my_snake.grow_uncertain
+    assert my_snake.grow == 0
+    assert my_snake.alive
+    assert my_snake.score == 5
+
+
+def test_observe_state_changes_eat():
+    old_world, old_world_size = parse_world([
+        '      84',
+        '  $1*1@1',
+        '        ',
+        '        ',
+    ])
+    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1.length = 3
+    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.grow_uncertain = True
+    snake1.grow = 0
+    snake1.score = 5
+    old_state = GameState(old_world, old_world_size, {1: snake1})
+
+    world, world_size = parse_world([
+        '      @1',
+        '    $1*1',
+        '        ',
+        '        ',
+    ])
+
+    robot = MyRobotSnake(World(world_size.x, world_size.y, world))
+    game_state = robot.observe_state_changes(old_state, robot.world, 1)
+
+    assert game_state.world_size == IntTuple(4, 4)
+    my_snake = game_state.my_snake
+    assert my_snake is not None
+    assert my_snake.color == 1
+    assert my_snake.head_pos == IntTuple(3, 0)
+    assert my_snake.tail_pos == IntTuple(2, 1)
+    assert my_snake.length == 3
+    assert list(my_snake.head_history) == [IntTuple(3, 1), IntTuple(2, 1)]
+    assert not my_snake.grow_uncertain
+    assert my_snake.grow == 8
+    assert my_snake.alive
+    assert my_snake.score == 13
+
+
+def test_observe_state_changes_missed_frame():
+    old_world, old_world_size = parse_world([
+        '        ',
+        '  $1*1@1',
+        '        ',
+        '        ',
+    ])
+    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1.length = 3
+    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.grow_uncertain = True
+    snake1.grow = 0
+    snake1.score = 5
+    old_state = GameState(old_world, old_world_size, {1: snake1})
+
+    world, world_size = parse_world([
+        '        ',
+        '      $1',
+        '      *1',
+        '      @1',
+    ])
+
+    robot = MyRobotSnake(World(world_size.x, world_size.y, world))
+    game_state = robot.observe_state_changes(old_state, robot.world, 1)
+
+    assert game_state.world_size == IntTuple(4, 4)
+    my_snake = game_state.my_snake
+    assert my_snake is not None
+    assert my_snake.color == 1
+    assert my_snake.head_pos == IntTuple(3, 3)
+    assert my_snake.tail_pos == IntTuple(3, 1)
+    assert my_snake.length == 3
+    assert list(my_snake.head_history) == [IntTuple(3, 2), IntTuple(3, 1)]
+    assert my_snake.grow_uncertain
+    assert my_snake.grow == 0
+    assert my_snake.alive
+    assert my_snake.score == 5
+
+
+def test_observe_state_changes_missed_frame2():
+    old_world, old_world_size = parse_world([
+        '        ',
+        '  $1*1@1',
+        '        ',
+        '        ',
+    ])
+    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1.length = 3
+    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.grow_uncertain = True
+    snake1.grow = 0
+    snake1.score = 5
+    old_state = GameState(old_world, old_world_size, {1: snake1})
+
+    world, world_size = parse_world([
+        '        ',
+        '  $1*1*1',
+        '      *1',
+        '      @1',
+    ])
+
+    robot = MyRobotSnake(World(world_size.x, world_size.y, world))
+    game_state = robot.observe_state_changes(old_state, robot.world, 1)
+
+    assert game_state.world_size == IntTuple(4, 4)
+    my_snake = game_state.my_snake
+    assert my_snake is not None
+    assert my_snake.color == 1
+    assert my_snake.head_pos == IntTuple(3, 3)
+    assert my_snake.tail_pos == IntTuple(1, 1)
+    assert my_snake.length == 5
+    assert list(my_snake.head_history) == [IntTuple(3, 2), IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)]
+    assert my_snake.grow_uncertain
+    assert my_snake.grow == 0
+    assert my_snake.alive
+    assert my_snake.score == 5
+
+
+def test_observe_state_changes_appear():
+    old_world, old_world_size = parse_world([
+        '        ',
+        '  $1*1@1',
+        '        ',
+        '        ',
+    ])
+    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1.length = 3
+    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.grow_uncertain = True
+    snake1.grow = 1
+    snake1.score = 5
+    old_state = GameState(old_world, old_world_size, {1: snake1})
+
+    world, world_size = parse_world([
+        '$2      ',
+        '*2$1*1*1',
+        '@2    @1',
+        '        ',
+    ])
+
+    robot = MyRobotSnake(World(world_size.x, world_size.y, world))
+    game_state = robot.observe_state_changes(old_state, robot.world, 1)
+
+    assert game_state.world_size == IntTuple(4, 4)
+    my_snake = game_state.my_snake
+    assert my_snake is not None
+    assert my_snake.color == 1
+    assert my_snake.length == 4
+    assert list(my_snake.head_history) == [IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)]
+    assert my_snake.grow_uncertain
+    assert my_snake.grow == 0
+    assert my_snake.alive
+    assert my_snake.score == 5
+    assert my_snake.head_pos == IntTuple(3, 2)
+    assert my_snake.tail_pos == IntTuple(1, 1)
+
+    snake2 = game_state.snakes_by_color[2]
+    assert snake2.color == 2
+    assert snake2.length == 3
+    assert list(snake2.head_history) == [IntTuple(0, 1), IntTuple(0, 0)]
+    assert snake2.grow_uncertain
+    assert snake2.grow == 0
+    assert snake2.alive
+    assert snake2.score == 0
+    assert snake2.head_pos == IntTuple(0, 2)
+    assert snake2.tail_pos == IntTuple(0, 0)
+
+
+def test_observe_state_changes_die():
+    old_world, old_world_size = parse_world([
+        '$2      ',
+        '*2$1*1@1',
+        '@2      ',
+        '        ',
+    ])
+    old_snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    old_snake1.length = 3
+    old_snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    old_snake1.grow_uncertain = True
+    old_snake1.grow = 1
+    old_snake1.score = 5
+
+    old_snake2 = Snake(True, IntTuple(0, 2), IntTuple(0, 0), 2)
+    old_snake2.length = 3
+    old_snake2.head_history = deque([IntTuple(0, 1), IntTuple(0, 0)])
+    old_snake2.grow_uncertain = True
+    old_snake2.grow = 0
+    old_snake2.score = 9
+    old_state = GameState(old_world, old_world_size, {1: old_snake1, 2: old_snake2})
+
+    world, world_size = parse_world([
+        '%       ',
+        '+ $1*1*1',
+        'x     @1',
+        '        ',
+    ])
+
+    robot = MyRobotSnake(World(world_size.x, world_size.y, world))
+    game_state = robot.observe_state_changes(old_state, robot.world, 1)
+
+    assert game_state.world_size == IntTuple(4, 4)
+    my_snake = game_state.my_snake
+    assert my_snake is not None
+    assert my_snake.color == 1
+    assert my_snake.length == 4
+    assert list(my_snake.head_history) == [IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)]
+    assert my_snake.grow_uncertain
+    assert my_snake.grow == 0
+    assert my_snake.alive
+    assert my_snake.score == 5
+    assert my_snake.head_pos == IntTuple(3, 2)
+    assert my_snake.tail_pos == IntTuple(1, 1)
+
+    snake2 = game_state.snakes_by_color[2]
+    assert not snake2.alive
+    assert snake2.score == 9
+    assert snake2.color == 2
+    assert snake2.length == 3
+    assert list(snake2.head_history) == [IntTuple(0, 1), IntTuple(0, 0)]
+    assert snake2.grow_uncertain
+    assert snake2.grow == 0
+    assert snake2.head_pos == IntTuple(0, 2)
+    assert snake2.tail_pos == IntTuple(0, 0)
+
+
 def test_advance_game_simple_move():
     world, world_size = parse_world([
         '        ',

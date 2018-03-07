@@ -11,7 +11,7 @@ class World:
     def __init__(self, size_x: int, size_y: int, data: List[List[Tuple[str, int]]]):
         self.SIZE_X = size_x
         self.SIZE_Y = size_y
-        self.worldddata = data
+        self.worlddata = data
 
     def __getitem__(self, item: int):
         return self.worlddata[item]

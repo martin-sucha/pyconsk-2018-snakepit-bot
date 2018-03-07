@@ -219,7 +219,7 @@ class MyRobotSnake(RobotSnake):
         self.old_state = None  # type: Optional[GameState]
 
     @staticmethod
-    def observe_state_changes(old_state: GameState, world, my_color: int) -> GameState:
+    def observe_state_changes(old_state: Optional[GameState], world, my_color: int) -> GameState:
         """Observe what has changed since last turn and produce new game state"""
         if old_state:
             snakes_by_color = old_state.snakes_by_color
@@ -249,38 +249,39 @@ class MyRobotSnake(RobotSnake):
 
         for position in new_state.world_positions():
             char, color = new_state.world_get(position)
-            if char in RobotSnake.CH_HEAD:
+            if char == RobotSnake.CH_HEAD:
                 needs_trace = False
                 if color in new_state.snakes_by_color:
                     snake = new_state.snakes_by_color[color]
 
                     if position in neighbours(snake.head_pos):
                         snake.head_history.appendleft(snake.head_pos)
+                        snake.length += 1
                         if old_state:
                             old_yummy = old_state.world_yummy(position)
                             if old_yummy > 0:
-                                logger.info('Snake {} has eaten {} last turn'.format(snake.color, old_yummy))
                                 snake.grow += old_yummy
                                 snake.score += old_yummy
                     else:
                         needs_trace = True
-                        logger.info('Snake {} needs trace because of head position')
 
                     snake.head_pos = position
+                    snake.tail_pos = tails_by_color[color]
                 else:
                     snake = new_state.snakes_by_color[color] = Snake(True, position, tails_by_color[color], color)
                     needs_trace = True
-                    logger.info('Detected new snake {}')
 
                 old_tail_pos = old_tails_by_color.get(color)
-                if snake.grow_uncertain and old_tail_pos is not None and old_tail_pos != snake.tail_pos:
-                    # the tail has moved, so grow was definitely 0 last turn
-                    logger.info('Snake {} has stopped growing last turn'.format(snake.color))
-                    snake.grow_uncertain = False
+                if old_tail_pos is not None and old_tail_pos != snake.tail_pos:
+                    if len(snake.head_history) > 0 and snake.head_history[-1] == old_tail_pos:
+                        snake.head_history.pop()
+
+                    if snake.grow_uncertain:
+                        # the tail has moved, so grow was definitely 0 last turn
+                        snake.grow_uncertain = False
 
                 snake.length = lengths_by_color[color]
                 if needs_trace:
-                    logger.info('Tracing snake {}'.format(snake.color))
                     path = new_state.trace_snake_path(snake.head_pos)
                     snake.head_history = deque(path[1:])
                     snake.grow = 0
@@ -320,9 +321,12 @@ class MyRobotSnake(RobotSnake):
             if len(snake.head_history) != snake.length - 1:
                 # we don't know where tail will move, leave it where it is
                 uncertainty = True
+                logger.info('uncertain because snake {} does not have full history {}/{}'.format(
+                    snake.color, len(snake.head_history), snake.length))
                 return True
             if snake.grow_uncertain:
                 uncertainty = True
+                logger.info('uncertain because snake {} has grow_uncertain=True'.format(snake.color))
                 return True
             return snake.grow
 
@@ -441,6 +445,7 @@ class MyRobotSnake(RobotSnake):
             snake_directions = {snake.color: combination[index] for index, snake in enumerate(alive_snakes)}
             new_state, uncertainty = self.advance_game(game_state, snake_directions)
             if uncertainty:
+                logger.info('uncertain')
                 score = heuristic(new_state)
             else:
                 score, _ = self.search_move_space(depth - 1, new_state, heuristic)
@@ -465,10 +470,18 @@ class MyRobotSnake(RobotSnake):
 
         More information can be found in the Snake documentation.
         """
-        logger.info('Updating snakes')
+        logger.info('------------- tick start')
+        if self.old_state:
+            for snake in self.old_state.snakes_by_color.values():
+                logger.info('old {!r} {!r} {} {}'.format(snake, snake.score, 'alive' if snake.alive else 'dead',
+                                                     snake.head_history))
+        start_time = time.monotonic()
         game_state = self.observe_state_changes(self.old_state, self.world, self.color)
+        end_time = time.monotonic()
+        logger.info('Observe took {} milliseconds'.format((end_time - start_time) * 1000))
         for snake in game_state.snakes_by_color.values():
-            logger.info('{!r} {!r} {}'.format(snake, snake.score, 'alive' if snake.alive else 'dead'))
+            logger.info('{!r} {!r} {} {}'.format(snake, snake.score, 'alive' if snake.alive else 'dead',
+                                                 snake.head_history))
 
         logger.info('Selecting next move')
 
@@ -483,7 +496,7 @@ class MyRobotSnake(RobotSnake):
             return me_alive, -opponents_alive, my_score, -opponents_score
 
         start_time = time.monotonic()
-        best_score, best_directions = self.search_move_space(3, game_state, heuristic)
+        best_score, best_directions = self.search_move_space(10, game_state, heuristic)
         end_time = time.monotonic()
         best_move = best_directions[self.color]
 
