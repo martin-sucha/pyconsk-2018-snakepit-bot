@@ -117,8 +117,11 @@ class GameState:
         else:
             self.world_size = world_size
             self.world = bytearray(world_size.x * world_size.y)
-            for pos in self.world_positions():
-                self.world_set(pos, world[pos.y][pos.x])
+            index = 0
+            for y in range(self.world_size.y):
+                for x in range(self.world_size.x):
+                    self.world[index] = self._encode_value(world[y][x])
+                    index += 1
             self.snakes_by_color = snakes_by_color
             self.my_snake = None  # type: Optional[Snake]
             self.enemy_snake = None  # type: Optional[Snake]
@@ -136,10 +139,12 @@ class GameState:
     def _decode_value(byte: int) -> Tuple[str, int]:
         return GAME_CHARS[byte & 0xf], byte >> 5
 
-    def world_positions(self):
+    def world_iter(self):
+        index = 0
         for y in range(self.world_size.y):
             for x in range(self.world_size.x):
-                yield IntTuple(x, y)
+                yield x, y, self._decode_value(self.world[index])
+                index += 1
 
     def world_get(self, position: IntTuple) -> Tuple[str, int]:
         """Get the state of world at given position.
@@ -152,7 +157,7 @@ class GameState:
             return RobotSnake.CH_STONE, 0
         if position.y < 0 or position.y >= self.world_size.y:
             return RobotSnake.CH_STONE, 0
-        return self._decode_value(self.world[position.y*self.world_size.x+position.x])
+        return self._decode_value(self.world[position.y * self.world_size.x + position.x])
 
     def world_set(self, position: IntTuple, value: Tuple[str, int]):
         """Set the state of world at given position.
@@ -244,22 +249,19 @@ class MyRobotSnake(RobotSnake):
         old_tails_by_color = {}
         heads_by_color = {}
         lengths_by_color = defaultdict(lambda: 0)
-        for position in new_state.world_positions():
-            char, color = new_state.world_get(position)
-
+        for x, y, (char, color) in new_state.world_iter():
             if char == RobotSnake.CH_TAIL:
-                tails_by_color[color] = position
+                tails_by_color[color] = IntTuple(x, y)
             elif char == RobotSnake.CH_HEAD:
-                heads_by_color[color] = position
+                heads_by_color[color] = IntTuple(x, y)
 
             if char in RobotSnake.BODY_CHARS:
                 lengths_by_color[color] += 1
 
         if old_state:
-            for position in old_state.world_positions():
-                old_char, old_color = old_state.world_get(position)
-                if old_char == RobotSnake.CH_TAIL:
-                    old_tails_by_color[old_color] = position
+            for x, y, (char, color) in old_state.world_iter():
+                if char == RobotSnake.CH_TAIL:
+                    old_tails_by_color[color] = IntTuple(x, y)
 
         for color, position in heads_by_color.items():
             needs_trace = False
