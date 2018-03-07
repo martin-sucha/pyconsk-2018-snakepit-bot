@@ -489,12 +489,13 @@ class MyRobotSnake(RobotSnake):
 
         return game_result, liveness, score
 
-    def iterative_search_move_space(self, max_depth: int, game_state: GameState, heuristic: Callable[[GameState], Any],
+    def iterative_search_move_space(self, game_state: GameState, heuristic: Callable[[GameState], Any],
                                     deadline: Optional[float]) -> Tuple[Any, Optional[IntTuple], int]:
         best_move = None
         best_score = None
         total_explored_states = 0
-        for depth in range(1, max_depth):
+        depth = 1
+        while True:
             try:
                 score, move, explored_states = self.search_move_space(depth, game_state, heuristic, deadline)
             except SearchTimedOut:
@@ -504,7 +505,7 @@ class MyRobotSnake(RobotSnake):
                 total_explored_states += explored_states
                 best_move = move
                 best_score = score
-        return best_score, best_move, total_explored_states
+                depth += 1
 
     def search_move_space(self, depth: int, game_state: GameState, heuristic: Callable[[GameState], Any],
                           deadline: Optional[float]) -> Tuple[Any, Optional[IntTuple], int]:
@@ -610,7 +611,8 @@ class MyRobotSnake(RobotSnake):
         logger.info('Selecting next move')
 
         start_time = time.monotonic()
-        best_score, best_move, explored_states = self.iterative_search_move_space(3, game_state, self.heuristic,
+        best_score, best_move, explored_states = self.iterative_search_move_space(game_state,
+                                                                                  self.heuristic,
                                                                                   tick_deadline)
         end_time = time.monotonic()
 
@@ -642,6 +644,7 @@ class MyRobotSnake(RobotSnake):
         # copy the old version of the world for reference
         self.old_state = game_state
 
+        logger.info('Next direction returning after {} ms'.format((time.monotonic() - tick_start_time)*1000))
         # convert relative move to one of the documented return values
         # we could have converted to snakepit.datatypes.Vector directly, but it is not documented that it will be
         # accessible, so it's better to be safe than sorry
