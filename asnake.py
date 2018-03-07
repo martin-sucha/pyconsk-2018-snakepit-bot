@@ -69,6 +69,12 @@ class Snake:
         # position.
         self.head_history = deque()
 
+    @property
+    def direction(self) -> Optional[IntTuple]:
+        if len(self.head_history) == 0:
+            return None
+        return self.head_pos - self.head_history[0]
+
     def copy(self):
         copied = Snake(self.alive, self.head_pos, self.tail_pos, self.color)
         copied.length = self.length
@@ -106,6 +112,8 @@ class GameState:
             self.my_snake = None  # type: Optional[Snake]
             if world.my_snake is not None:
                 self.my_snake = self.snakes_by_color[world.my_snake.color]
+            if world.enemy_snake is not None:
+                self.enemy_snake = self.snakes_by_color[world.enemy_snake.color]
         else:
             self.world_size = world_size
             self.world = bytearray(world_size.x * world_size.y)
@@ -113,6 +121,7 @@ class GameState:
                 self.world_set(pos, world[pos.y][pos.x])
             self.snakes_by_color = snakes_by_color
             self.my_snake = None  # type: Optional[Snake]
+            self.enemy_snake = None  # type: Optional[Snake]
 
     @staticmethod
     def _encode_value(value: Tuple[str, int]) -> int:
@@ -294,6 +303,10 @@ class MyRobotSnake(RobotSnake):
 
         if new_state.my_snake is None:
             new_state.my_snake = new_state.snakes_by_color[my_color]
+        if new_state.enemy_snake is None:
+            enemy_snakes = list(snake for snake in new_state.snakes_by_color.values() if snake.color != my_color)
+            if enemy_snakes:
+                new_state.enemy_snake = enemy_snakes[0]
 
         return new_state
 
@@ -434,24 +447,75 @@ class MyRobotSnake(RobotSnake):
 
         return new_state, uncertainty
 
+    @staticmethod
+    def heuristic(state):
+        """Larger return values are better for my_snake"""
+        me_lives = state.my_snake is not None and state.my_snake.alive
+        enemy_lives = state.enemy_snake is not None and state.enemy_snake.alive
+        if me_lives == enemy_lives:
+            liveness = 0
+        elif me_lives:
+            liveness = 1
+        else:
+            liveness = -1
+
+        my_score = 0 if state.my_snake is None else state.my_snake.score
+        enemy_score = 0 if state.enemy_snake is None else state.enemy_snake.score
+        score = my_score - enemy_score
+
+        return liveness, score
+
     def search_move_space(self, depth, game_state, heuristic):
         moves = [DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT]
-        alive_snakes = [snake for snake in game_state.snakes_by_color.values() if snake.alive]
-        if depth == 0 or not alive_snakes:
+        if depth == 0 or not game_state.my_snake.alive:
             return heuristic(game_state), None
+
         best_move = None
         best_score = None
-        for combination in product(moves, repeat=len(alive_snakes)):
-            snake_directions = {snake.color: combination[index] for index, snake in enumerate(alive_snakes)}
-            new_state, uncertainty = self.advance_game(game_state, snake_directions)
-            if uncertainty:
-                logger.info('uncertain')
-                score = heuristic(new_state)
+        for my_move in moves:
+            my_direction = game_state.my_snake.direction
+            if my_direction is not None and my_move.x == -my_direction.x and my_move.y == -my_direction.y:
+                continue  # can't move backwards
+
+            if game_state.enemy_snake and game_state.enemy_snake.alive:
+                enemy_direction = game_state.enemy_snake.direction
+                worst_enemy_move = None
+                worst_enemy_score = None
+                for enemy_move in moves:
+                    if enemy_direction is not None and enemy_move.x == -enemy_direction.x and \
+                            enemy_move.y == -enemy_direction.y:
+                        continue  # can't move backwards
+                    snake_directions = {
+                        game_state.my_snake.color: my_move,
+                        game_state.enemy_snake.color: enemy_move,
+                    }
+                    new_state, uncertainty = self.advance_game(game_state, snake_directions)
+                    if uncertainty:
+                        logger.info('uncertain')
+                        score = heuristic(new_state)
+                    else:
+                        score, _ = self.search_move_space(depth - 1, new_state, heuristic)
+
+                    if worst_enemy_move is None or score < worst_enemy_score:
+                        worst_enemy_move = enemy_move
+                        worst_enemy_score = score
+                if best_move is None or worst_enemy_score > best_score:
+                    best_move = my_move
+                    best_score = worst_enemy_score
             else:
-                score, _ = self.search_move_space(depth - 1, new_state, heuristic)
-            if best_move is None or score > best_score:
-                best_move = snake_directions
-                best_score = score
+                snake_directions = {
+                    game_state.my_snake.color: my_move,
+                }
+                new_state, uncertainty = self.advance_game(game_state, snake_directions)
+                if uncertainty:
+                    logger.info('uncertain')
+                    score = heuristic(new_state)
+                else:
+                    score, _ = self.search_move_space(depth - 1, new_state, heuristic)
+                if best_move is None or score > best_score:
+                    best_move = my_move
+                    best_score = score
+
         return best_score, best_move
 
     def next_direction(self, initial=False):
@@ -484,20 +548,9 @@ class MyRobotSnake(RobotSnake):
 
         logger.info('Selecting next move')
 
-        def heuristic(state):
-            my_snake = state.snakes_by_color[self.color]
-            me_alive = my_snake.alive
-            opponents_alive = len([snake for snake in state.snakes_by_color.values()
-                                   if snake.color != self.color and snake.alive])
-            my_score = my_snake.score
-            opponents_score = sum(snake.score for snake in state.snakes_by_color.values()
-                                  if snake.color != self.color)
-            return me_alive, -opponents_alive, my_score, -opponents_score
-
         start_time = time.monotonic()
-        best_score, best_directions = self.search_move_space(3, game_state, heuristic)
+        best_score, best_move = self.search_move_space(3, game_state, self.heuristic)
         end_time = time.monotonic()
-        best_move = best_directions[self.color]
 
         logger.info('Decision took {} milliseconds'.format((end_time-start_time)*1000))
         logger.info('My position: ' + repr(game_state.my_snake.head_pos))

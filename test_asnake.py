@@ -379,6 +379,8 @@ def test_observe_state_changes_appear():
     assert my_snake.head_pos == IntTuple(3, 2)
     assert my_snake.tail_pos == IntTuple(1, 1)
 
+    assert game_state.enemy_snake is not None
+    assert game_state.enemy_snake.color == 2
     snake2 = game_state.snakes_by_color[2]
     assert snake2.color == 2
     assert snake2.length == 3
