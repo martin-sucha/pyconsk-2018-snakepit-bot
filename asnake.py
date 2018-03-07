@@ -1,7 +1,8 @@
 import logging
+import random
 from collections import deque, defaultdict
 from itertools import product
-from typing import List, Optional, Dict, Tuple, Union
+from typing import List, Optional, Dict, Tuple, Union, Callable, Any
 
 import time
 
@@ -110,6 +111,7 @@ class GameState:
             self.world = bytearray(world.world)
             self.snakes_by_color = {k: v.copy() for k, v in world.snakes_by_color.items()}
             self.my_snake = None  # type: Optional[Snake]
+            self.enemy_snake = None  # type: Optional[Snake]
             if world.my_snake is not None:
                 self.my_snake = self.snakes_by_color[world.my_snake.color]
             if world.enemy_snake is not None:
@@ -223,6 +225,10 @@ class GameState:
         self.snakes_by_color[dead_color].alive = False
 
 
+class SearchTimedOut(Exception):
+    pass
+
+
 class MyRobotSnake(RobotSnake):
     OCCUPIED_CHARS = RobotSnake.DEAD_BODY_CHARS\
         .union(RobotSnake.BODY_CHARS).union([RobotSnake.CH_STONE])\
@@ -231,6 +237,7 @@ class MyRobotSnake(RobotSnake):
     def __init__(self, *args, **kwargs):
         super(MyRobotSnake, self).__init__(*args, **kwargs)
         self.old_state = None  # type: Optional[GameState]
+        self.frame_no = 0
 
     @staticmethod
     def observe_state_changes(old_state: Optional[GameState], world, my_color: int) -> GameState:
@@ -470,13 +477,32 @@ class MyRobotSnake(RobotSnake):
 
         return liveness, score
 
-    def search_move_space(self, depth, game_state, heuristic):
+    def iterative_search_move_space(self, max_depth: int, game_state: GameState, heuristic: Callable[[GameState], Any],
+                                    deadline: Optional[float]) -> Tuple[Any, Optional[IntTuple], int]:
+        best_move = None
+        best_score = None
+        total_explored_states = 0
+        for depth in range(1, max_depth):
+            try:
+                score, move, explored_states = self.search_move_space(depth, game_state, heuristic, deadline)
+            except SearchTimedOut:
+                logger.warning('Search timed out in depth {}'.format(depth))
+                return best_score, best_move, total_explored_states
+            else:
+                total_explored_states += explored_states
+                best_move = move
+                best_score = score
+        return best_score, best_move, total_explored_states
+
+    def search_move_space(self, depth: int, game_state: GameState, heuristic: Callable[[GameState], Any],
+                          deadline: Optional[float]) -> Tuple[Any, Optional[IntTuple], int]:
         moves = [DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT]
         if depth == 0 or not game_state.my_snake.alive:
-            return heuristic(game_state), None
+            return heuristic(game_state), None, 0
 
         best_move = None
         best_score = None
+        explored_states = 0
         for my_move in moves:
             my_direction = game_state.my_snake.direction
             if my_direction is not None and my_move.x == -my_direction.x and my_move.y == -my_direction.y:
@@ -490,16 +516,20 @@ class MyRobotSnake(RobotSnake):
                     if enemy_direction is not None and enemy_move.x == -enemy_direction.x and \
                             enemy_move.y == -enemy_direction.y:
                         continue  # can't move backwards
+                    if deadline is not None and time.monotonic() > deadline:
+                        raise SearchTimedOut()
                     snake_directions = {
                         game_state.my_snake.color: my_move,
                         game_state.enemy_snake.color: enemy_move,
                     }
+                    explored_states += 1
                     new_state, uncertainty = self.advance_game(game_state, snake_directions)
                     if uncertainty:
                         logger.info('uncertain')
                         score = heuristic(new_state)
                     else:
-                        score, _ = self.search_move_space(depth - 1, new_state, heuristic)
+                        score, _, explored_substates = self.search_move_space(depth - 1, new_state, heuristic, deadline)
+                        explored_states += explored_substates
 
                     if worst_enemy_move is None or score < worst_enemy_score:
                         worst_enemy_move = enemy_move
@@ -508,20 +538,24 @@ class MyRobotSnake(RobotSnake):
                     best_move = my_move
                     best_score = worst_enemy_score
             else:
+                if deadline is not None and time.monotonic() > deadline:
+                    raise SearchTimedOut()
                 snake_directions = {
                     game_state.my_snake.color: my_move,
                 }
+                explored_states += 1
                 new_state, uncertainty = self.advance_game(game_state, snake_directions)
                 if uncertainty:
                     logger.info('uncertain')
                     score = heuristic(new_state)
                 else:
-                    score, _ = self.search_move_space(depth - 1, new_state, heuristic)
+                    score, _, explored_substates = self.search_move_space(depth - 1, new_state, heuristic, deadline)
+                    explored_states += explored_substates
                 if best_move is None or score > best_score:
                     best_move = my_move
                     best_score = score
 
-        return best_score, best_move
+        return best_score, best_move, explored_states
 
     def next_direction(self, initial=False):
         """
@@ -538,7 +572,17 @@ class MyRobotSnake(RobotSnake):
 
         More information can be found in the Snake documentation.
         """
+        tick_start_time = time.monotonic()
         logger.info('------------- tick start')
+        self.frame_no += 1
+        # the frame rate is 9 at the beginning and goes up to 60 later
+        # so we can run deeper searches in the first 1024 frames (we use 1000 to have some buffer)
+        # the deadline is 3/4 the frame time, to allow for replies, etc.
+        if self.frame_no < 0:
+            tick_deadline = tick_start_time + 0.75 * (1 / 9.0)
+        else:
+            tick_deadline = tick_start_time + 0.75 * (1 / 60.0)
+
         if self.old_state:
             for snake in self.old_state.snakes_by_color.values():
                 logger.info('old {!r} {!r} {} {}'.format(snake, snake.score, 'alive' if snake.alive else 'dead',
@@ -554,10 +598,32 @@ class MyRobotSnake(RobotSnake):
         logger.info('Selecting next move')
 
         start_time = time.monotonic()
-        best_score, best_move = self.search_move_space(3, game_state, self.heuristic)
+        best_score, best_move, explored_states = self.iterative_search_move_space(3, game_state, self.heuristic,
+                                                                                  tick_deadline)
         end_time = time.monotonic()
 
-        logger.info('Decision took {} milliseconds'.format((end_time-start_time)*1000))
+        if best_move is None:
+            # Something bad has happened. At least try to fallback to random
+            logger.error('No possible moves found. Using fallback strategy.')
+            non_dying_moves = []
+            my_direction = game_state.my_snake.direction
+            for direction in DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT:
+                if my_direction is not None and direction.x == -my_direction.x and direction.y == -my_direction.y:
+                    continue  # can't move backwards
+                dir_char, dir_color = game_state.world_get(game_state.my_snake.head_pos + direction)
+                if dir_char == RobotSnake.CH_VOID:
+                    non_dying_moves.append((0, direction))
+                elif dir_char.isdigit():
+                    non_dying_moves.append((ord(dir_char), direction))
+                elif dir_char == RobotSnake.CH_TAIL:
+                    non_dying_moves.append((-1, direction))
+            if non_dying_moves:
+                random.shuffle(non_dying_moves)  # sort is stable, so will preserve the shuffle on the same level
+                non_dying_moves.sort(key=lambda i: i[0])
+                best_move = non_dying_moves[-1][1]
+
+        logger.info('Decision took {} milliseconds, explored {} states'.format((end_time-start_time)*1000,
+                                                                               explored_states))
         logger.info('My position: ' + repr(game_state.my_snake.head_pos))
         logger.info('Next move {!r} score {!r}'.format(best_move, best_score))
 

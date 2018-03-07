@@ -53,6 +53,7 @@ snake1.grow_uncertain = True
 snake1.grow = 1
 snake1.score = 5
 state = GameState(world, world_size, {1: snake1})
+state.my_snake = snake1
 robot = MyRobotSnake(World(world_size.x, world_size.y, world))
 snake_directions = {1: DIR_RIGHT}
 
@@ -108,6 +109,10 @@ def advance():
 
 def observe():
     return robot.observe_state_changes(state, new_world_wrapper, 1)
+
+
+def search():
+    return robot.search_move_space(3, state, robot.heuristic)
 
 
 #print(timeit.timeit('robot.advance_game(state, snake_directions)', globals=globals(), number=1000))
