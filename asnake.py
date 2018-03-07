@@ -449,7 +449,6 @@ class MyRobotSnake(RobotSnake):
                 score = heuristic(new_state)
             else:
                 score, _ = self.search_move_space(depth - 1, new_state, heuristic)
-            logger.info('- {!r} {!r} {!r}'.format(snake_directions, uncertainty, score))
             if best_move is None or score > best_score:
                 best_move = snake_directions
                 best_score = score
@@ -496,7 +495,7 @@ class MyRobotSnake(RobotSnake):
             return me_alive, -opponents_alive, my_score, -opponents_score
 
         start_time = time.monotonic()
-        best_score, best_directions = self.search_move_space(10, game_state, heuristic)
+        best_score, best_directions = self.search_move_space(3, game_state, heuristic)
         end_time = time.monotonic()
         best_move = best_directions[self.color]
 
