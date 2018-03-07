@@ -115,4 +115,8 @@ def search():
     return robot.search_move_space(3, state, robot.heuristic)
 
 
+def bfs():
+    return robot.bfs_food_and_partitions(state)
+
+
 #print(timeit.timeit('robot.advance_game(state, snake_directions)', globals=globals(), number=1000))

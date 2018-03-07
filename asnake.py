@@ -234,6 +234,8 @@ class MyRobotSnake(RobotSnake):
         .union(RobotSnake.BODY_CHARS).union([RobotSnake.CH_STONE])\
         .difference(RobotSnake.CH_TAIL)
 
+    OCCUPIED_CHARS_ALL = RobotSnake.DEAD_BODY_CHARS.union(RobotSnake.BODY_CHARS).union([RobotSnake.CH_STONE])
+
     def __init__(self, *args, **kwargs):
         super(MyRobotSnake, self).__init__(*args, **kwargs)
         self.old_state = None  # type: Optional[GameState]
@@ -458,6 +460,50 @@ class MyRobotSnake(RobotSnake):
             new_state.snakes_by_color[killer_color].score += len(victims) * 1000
 
         return new_state, uncertainty
+
+    @staticmethod
+    def bfs_food_and_partitions(state: GameState):
+        """Determine distance to nearest food and sum food and size in the current graph partition"""
+        reachable_node_count = 0
+        total_food = 0
+        distance_to_nearest = None
+
+        visited_positions = set()
+        positions_to_visit = deque()  # contains tuples (position, distance, food_value)
+
+        # Initially, we need to visit any of the reachable neighbours of our snake head
+        for neighbour in neighbours(state.my_snake.head_pos):
+            char, color = state.world_get(neighbour)
+            if char not in MyRobotSnake.OCCUPIED_CHARS_ALL:
+                if char.isdigit():
+                    food_value = int(char)
+                else:
+                    food_value = 0
+                positions_to_visit.append((neighbour, 1, food_value))
+
+        while positions_to_visit:
+            position, distance, food_value = positions_to_visit.popleft()
+
+            if position in visited_positions:
+                continue
+
+            reachable_node_count += 1
+            total_food += food_value
+            if food_value > 0 and distance_to_nearest is None:
+                distance_to_nearest = distance
+
+            for neighbour in neighbours(position):
+                char, color = state.world_get(neighbour)
+                if char not in MyRobotSnake.OCCUPIED_CHARS_ALL:
+                    if char.isdigit():
+                        food_value = int(char)
+                    else:
+                        food_value = 0
+                    positions_to_visit.append((neighbour, distance + 1, food_value))
+
+            visited_positions.add(position)
+
+        return distance_to_nearest, total_food, reachable_node_count
 
     @staticmethod
     def heuristic(state):
