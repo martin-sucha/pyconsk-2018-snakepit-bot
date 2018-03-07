@@ -464,18 +464,30 @@ class MyRobotSnake(RobotSnake):
         """Larger return values are better for my_snake"""
         me_lives = state.my_snake is not None and state.my_snake.alive
         enemy_lives = state.enemy_snake is not None and state.enemy_snake.alive
-        if me_lives == enemy_lives:
+        my_score = 0 if state.my_snake is None else state.my_snake.score
+        enemy_score = 0 if state.enemy_snake is None else state.enemy_snake.score
+
+        game_result = 0
+
+        if me_lives and enemy_lives:
             liveness = 0
         elif me_lives:
             liveness = 1
-        else:
+        elif enemy_lives:
             liveness = -1
+        else:
+            liveness = 0
+            # game over
+            if my_score > enemy_score:
+                game_result = 1  # I win
+            elif my_score < enemy_score:
+                game_result = -1  # I lose
+            else:
+                game_result = 0  # draw
 
-        my_score = 0 if state.my_snake is None else state.my_snake.score
-        enemy_score = 0 if state.enemy_snake is None else state.enemy_snake.score
         score = my_score - enemy_score
 
-        return liveness, score
+        return game_result, liveness, score
 
     def iterative_search_move_space(self, max_depth: int, game_state: GameState, heuristic: Callable[[GameState], Any],
                                     deadline: Optional[float]) -> Tuple[Any, Optional[IntTuple], int]:
