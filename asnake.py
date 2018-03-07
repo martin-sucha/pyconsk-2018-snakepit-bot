@@ -242,11 +242,16 @@ class MyRobotSnake(RobotSnake):
 
         tails_by_color = {}
         old_tails_by_color = {}
+        heads_by_color = {}
         lengths_by_color = defaultdict(lambda: 0)
         for position in new_state.world_positions():
             char, color = new_state.world_get(position)
+
             if char == RobotSnake.CH_TAIL:
                 tails_by_color[color] = position
+            elif char == RobotSnake.CH_HEAD:
+                heads_by_color[color] = position
+
             if char in RobotSnake.BODY_CHARS:
                 lengths_by_color[color] += 1
 
@@ -256,45 +261,43 @@ class MyRobotSnake(RobotSnake):
                 if old_char == RobotSnake.CH_TAIL:
                     old_tails_by_color[old_color] = position
 
-        for position in new_state.world_positions():
-            char, color = new_state.world_get(position)
-            if char == RobotSnake.CH_HEAD:
-                needs_trace = False
-                if color in new_state.snakes_by_color:
-                    snake = new_state.snakes_by_color[color]
+        for color, position in heads_by_color.items():
+            needs_trace = False
+            if color in new_state.snakes_by_color:
+                snake = new_state.snakes_by_color[color]
 
-                    if position in neighbours(snake.head_pos):
-                        snake.head_history.appendleft(snake.head_pos)
-                        snake.length += 1
-                        if old_state:
-                            old_yummy = old_state.world_yummy(position)
-                            if old_yummy > 0:
-                                snake.grow += old_yummy
-                                snake.score += old_yummy
-                    else:
-                        needs_trace = True
-
-                    snake.head_pos = position
-                    snake.tail_pos = tails_by_color[color]
+                if position in neighbours(snake.head_pos):
+                    snake.head_history.appendleft(snake.head_pos)
+                    snake.length += 1
+                    if old_state:
+                        old_yummy = old_state.world_yummy(position)
+                        if old_yummy > 0:
+                            snake.grow += old_yummy
+                            snake.score += old_yummy
                 else:
-                    snake = new_state.snakes_by_color[color] = Snake(True, position, tails_by_color[color], color)
                     needs_trace = True
 
-                old_tail_pos = old_tails_by_color.get(color)
-                if old_tail_pos is not None and old_tail_pos != snake.tail_pos:
-                    if len(snake.head_history) > 0 and snake.head_history[-1] == old_tail_pos:
-                        snake.head_history.pop()
+                snake.head_pos = position
+                snake.tail_pos = tails_by_color[color]
+            else:
+                snake = new_state.snakes_by_color[color] = Snake(True, position, tails_by_color[color], color)
+                needs_trace = True
 
-                    if snake.grow_uncertain:
-                        # the tail has moved, so grow was definitely 0 last turn
-                        snake.grow_uncertain = False
+            old_tail_pos = old_tails_by_color.get(color)
+            if old_tail_pos is not None and old_tail_pos != snake.tail_pos:
+                if len(snake.head_history) > 0 and snake.head_history[-1] == old_tail_pos:
+                    snake.head_history.pop()
 
-                snake.length = lengths_by_color[color]
-                if needs_trace:
-                    path = new_state.trace_snake_path(snake.head_pos)
-                    snake.head_history = deque(path[1:])
-                    snake.grow = 0
-                    snake.grow_uncertain = True
+                if snake.grow_uncertain:
+                    # the tail has moved, so grow was definitely 0 last turn
+                    snake.grow_uncertain = False
+
+            snake.length = lengths_by_color[color]
+            if needs_trace:
+                path = new_state.trace_snake_path(snake.head_pos)
+                snake.head_history = deque(path[1:])
+                snake.grow = 0
+                snake.grow_uncertain = True
 
         alive_snake_colors = set(tails_by_color.keys())
         for color, snake in new_state.snakes_by_color.items():

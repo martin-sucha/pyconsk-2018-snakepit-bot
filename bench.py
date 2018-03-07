@@ -56,8 +56,58 @@ state = GameState(world, world_size, {1: snake1})
 robot = MyRobotSnake(World(world_size.x, world_size.y, world))
 snake_directions = {1: DIR_RIGHT}
 
+new_world, new_world_size = parse_world([
+    '                                                                                ',
+    '    $1*1@1                                                                      ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+    '                                                                                ',
+])
+
+new_world_wrapper = World(new_world_size.x, new_world_size.y, new_world)
+
 
 def advance():
     return robot.advance_game(state, snake_directions)
+
+
+def observe():
+    return robot.observe_state_changes(state, new_world_wrapper, 1)
+
 
 #print(timeit.timeit('robot.advance_game(state, snake_directions)', globals=globals(), number=1000))
