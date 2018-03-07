@@ -71,6 +71,15 @@ def test_serialize_world():
     ]
 
 
+def test_decode_encode():
+    def check(value):
+        assert value == GameState._decode_value(GameState._encode_value(value))
+
+    for char in ' #@*$x+%123456789':
+        for color in range(8):
+            check((char, color))
+
+
 def test_observe_state_changes_first():
     world, world_size = parse_world([
         '        ',

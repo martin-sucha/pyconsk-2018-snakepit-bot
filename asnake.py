@@ -137,7 +137,7 @@ class GameState:
 
     @staticmethod
     def _decode_value(byte: int) -> Tuple[str, int]:
-        return GAME_CHARS[byte & 0xf], byte >> 5
+        return GAME_CHARS[byte & 0x1f], byte >> 5
 
     def world_iter(self):
         index = 0
