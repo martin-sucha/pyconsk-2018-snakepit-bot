@@ -105,10 +105,10 @@ GAME_CHARS = ''.join([RobotSnake.CH_VOID, RobotSnake.CH_STONE, RobotSnake.CH_HEA
 
 
 class GameState:
-    __slots__ = 'world_size', 'world', 'snakes_by_color', 'my_snake', 'enemy_snake'
+    __slots__ = 'world_size', 'world', 'snakes_by_color', 'my_snake', 'enemy_snake', 'frame_no'
 
     def __init__(self, world: Union[List[List[Tuple[str, int]]], 'GameState'], world_size: Optional[IntTuple] = None,
-                 snakes_by_color: Optional[Dict[int, Snake]] = None):
+                 snakes_by_color: Optional[Dict[int, Snake]] = None, frame_no: Optional[int] = None):
         if isinstance(world, GameState):
             self.world_size = world.world_size
             self.world = bytearray(world.world)
@@ -119,6 +119,7 @@ class GameState:
                 self.my_snake = self.snakes_by_color[world.my_snake.color]
             if world.enemy_snake is not None:
                 self.enemy_snake = self.snakes_by_color[world.enemy_snake.color]
+            self.frame_no = world.frame_no
         else:
             self.world_size = world_size
             self.world = bytearray(world_size.x * world_size.y)
@@ -130,6 +131,7 @@ class GameState:
             self.snakes_by_color = snakes_by_color
             self.my_snake = None  # type: Optional[Snake]
             self.enemy_snake = None  # type: Optional[Snake]
+            self.frame_no = frame_no
 
     @staticmethod
     def _encode_value(value: Tuple[str, int]) -> int:
@@ -267,9 +269,11 @@ class MyRobotSnake(RobotSnake):
         """Observe what has changed since last turn and produce new game state"""
         if old_state:
             snakes_by_color = old_state.snakes_by_color
+            frame_no = old_state.frame_no + 1
         else:
             snakes_by_color = {}
-        new_state = GameState(world, IntTuple(world.SIZE_X, world.SIZE_Y), snakes_by_color)
+            frame_no = 0
+        new_state = GameState(world, IntTuple(world.SIZE_X, world.SIZE_Y), snakes_by_color, frame_no)
 
         # decrease grow by one
         for snake in new_state.snakes_by_color.values():
@@ -358,6 +362,7 @@ class MyRobotSnake(RobotSnake):
         tails = {snake.tail_pos: color
                  for color, snake in state.snakes_by_color.items()}
         new_state = GameState(state)  # copy state
+        new_state.frame_no += 1
         uncertainty = False  # True if we are not certain things will go this way
 
         kills = defaultdict(list)  # dict from killer to killed color
@@ -580,6 +585,11 @@ class MyRobotSnake(RobotSnake):
         enemy_lives = state.enemy_snake is not None and state.enemy_snake.alive
         my_score = 0 if state.my_snake is None else state.my_snake.score
         enemy_score = 0 if state.enemy_snake is None else state.enemy_snake.score
+
+        # The game is limited to 8192 frames
+        if state.frame_no > 8192:
+            me_lives = False
+            enemy_lives = False
 
         game_result = 0
 
