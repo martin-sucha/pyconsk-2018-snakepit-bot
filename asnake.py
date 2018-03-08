@@ -482,16 +482,13 @@ class MyRobotSnake(RobotSnake):
     @staticmethod
     def bfs_food_and_partitions(state: GameState):
         """Determine distance to nearest food and sum food and size in the current graph partition"""
-        reachable_node_count = 0
-        total_food = 0
-        distance_to_nearest = None
-
         visited_positions = set()
-        positions_to_visit = deque()  # contains tuples (position, distance, food_value)
-        enqueued_positions = set()
+        positions_to_visit = deque()  # contains tuples (position, distance, food_value, initial_index)
+        enqueued_positions = {}
 
         # Initially, we need to visit any of the reachable neighbours of our snake head
         head_pos = state.my_snake.head_pos
+        initial_positions = []
         for neighbour in ((head_pos.x, head_pos.y - 1), (head_pos.x + 1, head_pos.y),
                           (head_pos.x, head_pos.y + 1), (head_pos.x - 1, head_pos.y)):
             char, color = state.world_get2(neighbour)
@@ -500,25 +497,45 @@ class MyRobotSnake(RobotSnake):
                     food_value = int(char)
                 else:
                     food_value = 0
-                positions_to_visit.append((neighbour, 1, food_value))
-                enqueued_positions.add(neighbour)
+                positions_to_visit.append((neighbour, 1, food_value, len(initial_positions)))
+                enqueued_positions[neighbour] = len(initial_positions)
+                initial_positions.append(neighbour)
+
+        total_food = [0] * len(initial_positions)
+        reachable_node_count = [0] * len(initial_positions)
+        distance_to_nearest = [None] * len(initial_positions)
+        partition_index = list(range(len(initial_positions)))  # for union-find-set
+
+        def find(index):
+            cur_index = index
+            while partition_index[cur_index] != cur_index:
+                cur_index = partition_index[cur_index]
+            partition_index[index] = cur_index
+            return cur_index
+
+        def union(index1, index2):
+            root1 = find(index1)
+            root2 = find(index2)
+            if root1 != root2:
+                partition_index[root2] = root1
 
         while positions_to_visit:
-            position, distance, food_value = positions_to_visit.popleft()
+            position, distance, food_value, initial_index = positions_to_visit.popleft()
 
             if position in visited_positions:
                 continue
 
-            reachable_node_count += 1
-            total_food += food_value
-            if food_value > 0 and distance_to_nearest is None:
-                distance_to_nearest = distance
+            reachable_node_count[initial_index] += 1
+            total_food[initial_index] += food_value
+            if food_value > 0 and distance_to_nearest[initial_index] is None:
+                distance_to_nearest[initial_index] = distance
 
             position_x, position_y = position
 
             for neighbour in ((position_x, position_y - 1), (position_x + 1, position_y),
                               (position_x, position_y + 1), (position_x - 1, position_y)):
                 if neighbour in enqueued_positions:
+                    union(initial_index, enqueued_positions[neighbour])
                     continue
                 char, color = state.world_get2(neighbour)
                 if char not in MyRobotSnake.OCCUPIED_CHARS_ALL:
@@ -526,8 +543,8 @@ class MyRobotSnake(RobotSnake):
                         food_value = int(char)
                     else:
                         food_value = 0
-                    positions_to_visit.append((neighbour, distance + 1, food_value))
-                    enqueued_positions.add(neighbour)
+                    positions_to_visit.append((neighbour, distance + 1, food_value, initial_index))
+                    enqueued_positions[neighbour] = initial_index
 
             visited_positions.add(position)
 
