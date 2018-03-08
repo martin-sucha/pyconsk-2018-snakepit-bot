@@ -1,7 +1,7 @@
 import logging
 import random
 from collections import deque, defaultdict, namedtuple
-from typing import List, Optional, Dict, Tuple, Union, Callable, Any
+from typing import List, Optional, Dict, Tuple, Union, Any
 
 import time
 
@@ -614,7 +614,6 @@ class MyRobotSnake(RobotSnake):
 
     def iterative_search_move_space(self,
                                     game_state: GameState,
-                                    heuristic: Callable[[GameState, Optional[BFSPosition]], Any],
                                     deadline: Optional[float],
                                     bfs: BFSResult) -> Tuple[Any, Optional[XY], int]:
         best_move = None
@@ -623,8 +622,7 @@ class MyRobotSnake(RobotSnake):
         depth = 1
         while True:
             try:
-                score, move, explored_states = self.search_move_space(0, depth, game_state, heuristic, deadline, None,
-                                                                      bfs)
+                score, move, explored_states = self.search_move_space(0, depth, game_state, deadline, None, bfs)
             except SearchTimedOut:
                 logger.info('Search timed out in depth {}'.format(depth))
                 return best_score, best_move, total_explored_states
@@ -638,13 +636,12 @@ class MyRobotSnake(RobotSnake):
                           depth: int,
                           max_depth: int,
                           game_state: GameState,
-                          heuristic: Callable[[GameState, Optional[BFSPosition]], Any],
                           deadline: Optional[float],
                           bfs_branch: Optional[BFSPosition],
                           bfs: BFSResult) -> Tuple[Any, Optional[XY], int]:
         moves = [DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT]
         if depth == max_depth or not game_state.my_snake.alive:
-            return heuristic(game_state, bfs, bfs_branch, depth), None, 0
+            return self.heuristic(game_state, bfs, bfs_branch, depth), None, 0
 
         best_move = None
         best_score = None
@@ -683,10 +680,10 @@ class MyRobotSnake(RobotSnake):
                     explored_states += 1
                     new_state, uncertainty = self.advance_game(game_state, snake_directions)
                     if uncertainty:
-                        score = heuristic(new_state, bfs, move_bfs_branch, depth)
+                        score = self.heuristic(new_state, bfs, move_bfs_branch, depth)
                     else:
                         score, _, explored_substates = self.search_move_space(depth + 1, max_depth, new_state,
-                                                                              heuristic, deadline,
+                                                                              deadline,
                                                                               move_bfs_branch, bfs)
                         explored_states += explored_substates
 
@@ -706,10 +703,10 @@ class MyRobotSnake(RobotSnake):
                 explored_states += 1
                 new_state, uncertainty = self.advance_game(game_state, snake_directions)
                 if uncertainty:
-                    score = heuristic(new_state, bfs, move_bfs_branch, depth)
+                    score = self.heuristic(new_state, bfs, move_bfs_branch, depth)
                 else:
                     score, _, explored_substates = self.search_move_space(depth + 1, max_depth, new_state,
-                                                                          heuristic, deadline,
+                                                                          deadline,
                                                                           move_bfs_branch, bfs)
                     explored_states += explored_substates
                 if best_move is None or score > best_score:
@@ -770,7 +767,6 @@ class MyRobotSnake(RobotSnake):
 
         start_time = time.monotonic()
         best_score, best_move, explored_states = self.iterative_search_move_space(game_state,
-                                                                                  self.heuristic,
                                                                                   tick_deadline,
                                                                                   bfs)
         end_time = time.monotonic()
