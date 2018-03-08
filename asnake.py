@@ -11,52 +11,19 @@ from snakepit.robot_snake import RobotSnake
 logger = logging.getLogger('mysnake')
 
 
-class IntTuple:
-    """Helper for nicer position/vector arithmetics"""
-
-    __slots__ = 'x', 'y'
-
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-
-    def __add__(self, other):
-        if not isinstance(other, IntTuple):
-            return NotImplemented
-        return IntTuple(self.x + other.x, self.y + other.y)
-
-    def __sub__(self, other):
-        if not isinstance(other, IntTuple):
-            return NotImplemented
-        return IntTuple(self.x - other.x, self.y - other.y)
-
-    def __eq__(self, other):
-        if not isinstance(other, IntTuple):
-            return NotImplemented
-        return self.x == other.x and self.y == other.y
-
-    def __ne__(self, other):
-        if not isinstance(other, IntTuple):
-            return NotImplemented
-        return self.x != other.x or self.y != other.y
-
-    def __hash__(self) -> int:
-        return hash((self.x, self.y))
-
-    def __repr__(self):
-        return '<{!r}, {!r}>'.format(self.x, self.y)
+XY = namedtuple('XY', 'x y')
 
 
-DIR_UP = IntTuple(0, -1)
-DIR_RIGHT = IntTuple(1, 0)
-DIR_DOWN = IntTuple(0, 1)
-DIR_LEFT = IntTuple(-1, 0)
+DIR_UP = XY(0, -1)
+DIR_RIGHT = XY(1, 0)
+DIR_DOWN = XY(0, 1)
+DIR_LEFT = XY(-1, 0)
 
 
 class Snake:
     __slots__ = 'alive', 'head_pos', 'tail_pos', 'length', 'color', 'grow_uncertain', 'grow', 'score', 'head_history'
 
-    def __init__(self, alive: bool, head_pos: IntTuple, tail_pos: IntTuple, color: int = 0):
+    def __init__(self, alive: bool, head_pos: XY, tail_pos: XY, color: int = 0):
         self.alive = alive
         self.head_pos = head_pos
         self.tail_pos = tail_pos
@@ -72,10 +39,11 @@ class Snake:
         self.head_history = deque()
 
     @property
-    def direction(self) -> Optional[IntTuple]:
+    def direction(self) -> Optional[XY]:
         if len(self.head_history) == 0:
             return None
-        return self.head_pos - self.head_history[0]
+        prev_pos = self.head_history[0]
+        return XY(self.head_pos.x - prev_pos.x, self.head_pos.y - prev_pos.y)
 
     def copy(self):
         copied = Snake(self.alive, self.head_pos, self.tail_pos, self.color)
@@ -93,10 +61,10 @@ class Snake:
 
 def neighbours(position):
     """Return 4 neighbouring positions around a given position"""
-    yield position + IntTuple(0, -1)  # up
-    yield position + IntTuple(1, 0)  # right
-    yield position + IntTuple(0, 1)  # bottom
-    yield position + IntTuple(-1, 0)  # left
+    yield XY(position.x, position.y - 1)  # up
+    yield XY(position.x + 1, position.y)  # right
+    yield XY(position.x, position.y + 1)  # bottom
+    yield XY(position.x - 1, position.y)  # left
 
 
 WORLD_VOID = 0
@@ -133,7 +101,7 @@ GAME_CHARS = {
 class GameState:
     __slots__ = 'world_size', 'world', 'snakes_by_color', 'my_snake', 'enemy_snake', 'frame_no'
 
-    def __init__(self, world: Union[List[List[Tuple[str, int]]], 'GameState'], world_size: Optional[IntTuple] = None,
+    def __init__(self, world: Union[List[List[Tuple[str, int]]], 'GameState'], world_size: Optional[XY] = None,
                  snakes_by_color: Optional[Dict[int, Snake]] = None, frame_no: Optional[int] = None):
         if isinstance(world, GameState):
             self.world_size = world.world_size
@@ -177,7 +145,7 @@ class GameState:
                 yield x, y, self._decode_value(self.world[index])
                 index += 1
 
-    def world_get(self, position: IntTuple) -> Tuple[int, int]:
+    def world_get(self, position: XY) -> Tuple[int, int]:
         """Get the state of world at given position.
 
         This does bounds checks and returns stones for positions outside of the play area to simplify the code.
@@ -204,7 +172,7 @@ class GameState:
             return WORLD_STONE, 0
         return self._decode_value(self.world[position_y * self.world_size.x + position_x])
 
-    def world_set(self, position: IntTuple, value: Tuple[int, int]):
+    def world_set(self, position: XY, value: Tuple[int, int]):
         """Set the state of world at given position.
 
         This does bounds checks.
@@ -215,7 +183,7 @@ class GameState:
             return
         self.world[position.y * self.world_size.x + position.x] = self._encode_value(value)
 
-    def trace_snake_path(self, start_pos: IntTuple) -> List[IntTuple]:
+    def trace_snake_path(self, start_pos: XY) -> List[XY]:
         """Given a head or tail position of the snake, find the segments of the path until they can be uniquely followed.
 
         We might find cycles in case the snake touches itself. In this case, we can't determine the history of the
@@ -284,7 +252,7 @@ class MyRobotSnake(RobotSnake):
         else:
             snakes_by_color = {}
             frame_no = 0
-        new_state = GameState(world, IntTuple(world.SIZE_X, world.SIZE_Y), snakes_by_color, frame_no)
+        new_state = GameState(world, XY(world.SIZE_X, world.SIZE_Y), snakes_by_color, frame_no)
 
         # decrease grow by one
         for snake in new_state.snakes_by_color.values():
@@ -302,9 +270,9 @@ class MyRobotSnake(RobotSnake):
                 color = encoded >> 5
 
                 if char == WORLD_TAIL:
-                    tails_by_color[color] = IntTuple(x, y)
+                    tails_by_color[color] = XY(x, y)
                 elif char == WORLD_HEAD:
-                    heads_by_color[color] = IntTuple(x, y)
+                    heads_by_color[color] = XY(x, y)
 
                 if WORLD_TAIL <= char <= WORLD_HEAD:
                     lengths_by_color[color] += 1
@@ -319,7 +287,7 @@ class MyRobotSnake(RobotSnake):
                     color = encoded >> 5
 
                     if char == WORLD_TAIL:
-                        old_tails_by_color[color] = IntTuple(x, y)
+                        old_tails_by_color[color] = XY(x, y)
 
                     index += 1
 
@@ -376,14 +344,15 @@ class MyRobotSnake(RobotSnake):
         return new_state
 
     @staticmethod
-    def advance_game(state: GameState, snake_directions: Dict[int, IntTuple]) -> Tuple[GameState, bool]:
+    def advance_game(state: GameState, snake_directions: Dict[int, XY]) -> Tuple[GameState, bool]:
         """Advance the state of game one tick, based on the selected snake directions.
 
         :param state: starting game state
         :param snake_directions: a dictionary from snake color to direction of movement
         :return: a new game state based on the directions
         """
-        next_snake_heads = {color: state.snakes_by_color[color].head_pos + direction
+        next_snake_heads = {color: XY(state.snakes_by_color[color].head_pos.x + direction.x,
+                                      state.snakes_by_color[color].head_pos.y + direction.y)
                             for color, direction in snake_directions.items()}
         tails = {snake.tail_pos: color
                  for color, snake in state.snakes_by_color.items()}
@@ -472,8 +441,8 @@ class MyRobotSnake(RobotSnake):
                 # did not crash into anything, so lives, moves
                 if 1 <= old_char <= 9:
                     new_snake = new_state.snakes_by_color[color]
-                    new_snake.grow += int(old_char)
-                    new_snake.score += int(old_char)
+                    new_snake.grow += old_char
+                    new_snake.score += old_char
                 moves.add(color)
 
         # Move snakes
@@ -647,7 +616,7 @@ class MyRobotSnake(RobotSnake):
                                     game_state: GameState,
                                     heuristic: Callable[[GameState, Optional[BFSPosition]], Any],
                                     deadline: Optional[float],
-                                    bfs: BFSResult) -> Tuple[Any, Optional[IntTuple], int]:
+                                    bfs: BFSResult) -> Tuple[Any, Optional[XY], int]:
         best_move = None
         best_score = None
         total_explored_states = 0
@@ -672,7 +641,7 @@ class MyRobotSnake(RobotSnake):
                           heuristic: Callable[[GameState, Optional[BFSPosition]], Any],
                           deadline: Optional[float],
                           bfs_branch: Optional[BFSPosition],
-                          bfs: BFSResult) -> Tuple[Any, Optional[IntTuple], int]:
+                          bfs: BFSResult) -> Tuple[Any, Optional[XY], int]:
         moves = [DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT]
         if depth == max_depth or not game_state.my_snake.alive:
             return heuristic(game_state, bfs, bfs_branch, depth), None, 0
@@ -688,7 +657,8 @@ class MyRobotSnake(RobotSnake):
             if bfs_branch is not None:
                 move_bfs_branch = bfs_branch
             else:
-                next_head_pos = game_state.my_snake.head_pos + my_move
+                next_head_pos = XY(game_state.my_snake.head_pos.x + my_move.x,
+                                   game_state.my_snake.head_pos.y + my_move.y)
                 logger.info('Next head: {}'.format(next_head_pos))
                 for branch in bfs.position_stats:
                     logger.info('Branch: {}'.format(branch))
@@ -824,11 +794,12 @@ class MyRobotSnake(RobotSnake):
                     heur = (entering_small_partition, bfs_pos.food_score, bfs_pos.partition_size)
                     options.append((heur, bfs_pos.position))
                 best = max(options, key=lambda x: x[0])
-                best_move = IntTuple(best[1][0], best[1][1])
+                best_move = XY(best[1][0], best[1][1])
             else:
                 # try to follow a tail, we have no other option
                 for direction in DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT:
-                    dir_char, dir_color = game_state.world_get(game_state.my_snake.head_pos + direction)
+                    dir_char, dir_color = game_state.world_get(XY(game_state.my_snake.head_pos.x + direction.x,
+                                                                  game_state.my_snake.head_pos.y + direction.y))
                     if dir_char == WORLD_TAIL:
                         best_move = direction
                         break
@@ -838,7 +809,8 @@ class MyRobotSnake(RobotSnake):
             for direction in DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT:
                 if my_direction is not None and direction.x == -my_direction.x and direction.y == -my_direction.y:
                     continue  # can't move backwards
-                dir_char, dir_color = game_state.world_get(game_state.my_snake.head_pos + direction)
+                dir_char, dir_color = game_state.world_get(XY(game_state.my_snake.head_pos.x + direction.x,
+                                                              game_state.my_snake.head_pos.y + direction.y))
                 if dir_char < WORLD_TAIL:  # not occupied
                     # dir_char is also food value in this case
                     non_dying_moves.append((dir_char, direction))

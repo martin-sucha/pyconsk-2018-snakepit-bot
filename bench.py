@@ -2,7 +2,7 @@ from collections import deque
 
 import time
 
-from asnake import Snake, IntTuple, GameState, MyRobotSnake, DIR_RIGHT
+from asnake import Snake, GameState, MyRobotSnake, DIR_RIGHT, XY
 from snakepit.robot_snake import World
 from test_asnake import parse_world
 
@@ -48,9 +48,9 @@ world, world_size = parse_world([
     '                                                                                ',
     '                                                                                ',
 ])
-snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
 snake1.length = 3
-snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+snake1.head_history = deque([XY(2, 1), XY(1, 1)])
 snake1.grow_uncertain = True
 snake1.grow = 1
 snake1.score = 5

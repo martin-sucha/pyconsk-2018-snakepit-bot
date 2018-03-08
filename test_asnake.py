@@ -1,11 +1,11 @@
 from collections import deque
 from typing import Tuple, List
 
-from asnake import GameState, IntTuple, Snake, MyRobotSnake, DIR_DOWN, DIR_RIGHT, DIR_UP, GAME_CHARS
+from asnake import GameState, Snake, MyRobotSnake, DIR_DOWN, DIR_RIGHT, DIR_UP, GAME_CHARS, XY
 from snakepit.robot_snake import World
 
 
-def parse_world(lines: List[str]) -> Tuple[List[List[Tuple[str, int]]], IntTuple]:
+def parse_world(lines: List[str]) -> Tuple[List[List[Tuple[str, int]]], XY]:
     """Parse the world lines to world data and world size"""
     size_y = len(lines)
     if len(lines[0]) % 2 != 0:
@@ -27,7 +27,7 @@ def parse_world(lines: List[str]) -> Tuple[List[List[Tuple[str, int]]], IntTuple
                 color = 0
             row.append((char, color))
         rows.append(row)
-    return rows, IntTuple(size_x, size_y)
+    return rows, XY(size_x, size_y)
 
 
 REVERSE_CHARS = {v: k for k, v in GAME_CHARS.items()}
@@ -36,7 +36,7 @@ REVERSE_CHARS = {v: k for k, v in GAME_CHARS.items()}
 def serialize_world(state: GameState) -> List[str]:
     """Serialize world data to lines"""
     def describe(x, y):
-        char, color = state.world_get(IntTuple(x, y))
+        char, color = state.world_get(XY(x, y))
 
         return '{}{}'.format(REVERSE_CHARS[char], ' ' if color < 1 or color > 9 else str(color))
     return [''.join(describe(x, y) for x in range(state.world_size.x)) for y in range(state.world_size.y)]
@@ -66,7 +66,7 @@ def test_serialize_world():
         [(' ', 0), ('$', 1), ('*', 1), ('@', 1)],
         [(' ', 0), (' ', 0), (' ', 0), (' ', 0)],
         [(' ', 0), (' ', 0), (' ', 0), (' ', 0)],
-    ], IntTuple(4, 4), {}, 0))
+    ], XY(4, 4), {}, 0))
     assert lines == [
         '        ',
         '  $1*1@1',
@@ -95,18 +95,18 @@ def test_observe_state_changes_first():
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     game_state = robot.observe_state_changes(None, robot.world, 1)
 
-    assert game_state.world_size == IntTuple(4, 4)
+    assert game_state.world_size == XY(4, 4)
     my_snake = game_state.my_snake
     assert my_snake is not None
     assert my_snake.color == 1
     assert my_snake.length == 3
-    assert list(my_snake.head_history) == [IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(my_snake.head_history) == [XY(2, 1), XY(1, 1)]
     assert my_snake.grow_uncertain
     assert my_snake.grow == 0
     assert my_snake.alive
     assert my_snake.score == 0
-    assert my_snake.head_pos == IntTuple(3, 1)
-    assert my_snake.tail_pos == IntTuple(1, 1)
+    assert my_snake.head_pos == XY(3, 1)
+    assert my_snake.tail_pos == XY(1, 1)
 
 
 def test_observe_state_changes_nontraceable():
@@ -120,7 +120,7 @@ def test_observe_state_changes_nontraceable():
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     game_state = robot.observe_state_changes(None, robot.world, 1)
 
-    assert game_state.world_size == IntTuple(4, 4)
+    assert game_state.world_size == XY(4, 4)
     my_snake = game_state.my_snake
     assert my_snake is not None
     assert my_snake.color == 1
@@ -130,8 +130,8 @@ def test_observe_state_changes_nontraceable():
     assert my_snake.grow == 0
     assert my_snake.alive
     assert my_snake.score == 0
-    assert my_snake.head_pos == IntTuple(1, 1)
-    assert my_snake.tail_pos == IntTuple(3, 3)
+    assert my_snake.head_pos == XY(1, 1)
+    assert my_snake.tail_pos == XY(3, 3)
 
 
 def test_observe_state_changes_nontraceable2():
@@ -145,18 +145,18 @@ def test_observe_state_changes_nontraceable2():
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     game_state = robot.observe_state_changes(None, robot.world, 1)
 
-    assert game_state.world_size == IntTuple(4, 4)
+    assert game_state.world_size == XY(4, 4)
     my_snake = game_state.my_snake
     assert my_snake is not None
     assert my_snake.color == 1
     assert my_snake.length == 11
-    assert list(my_snake.head_history) == [IntTuple(1, 0), IntTuple(1, 1)]
+    assert list(my_snake.head_history) == [XY(1, 0), XY(1, 1)]
     assert my_snake.grow_uncertain
     assert my_snake.grow == 0
     assert my_snake.alive
     assert my_snake.score == 0
-    assert my_snake.head_pos == IntTuple(0, 0)
-    assert my_snake.tail_pos == IntTuple(3, 3)
+    assert my_snake.head_pos == XY(0, 0)
+    assert my_snake.tail_pos == XY(3, 3)
 
 
 def test_observe_state_changes_grow_uncertain():
@@ -166,9 +166,9 @@ def test_observe_state_changes_grow_uncertain():
         '        ',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.length = 3
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     snake1.grow_uncertain = True
     snake1.grow = 1
     snake1.score = 5
@@ -184,18 +184,18 @@ def test_observe_state_changes_grow_uncertain():
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     game_state = robot.observe_state_changes(old_state, robot.world, 1)
 
-    assert game_state.world_size == IntTuple(4, 4)
+    assert game_state.world_size == XY(4, 4)
     my_snake = game_state.my_snake
     assert my_snake is not None
     assert my_snake.color == 1
     assert my_snake.length == 4
-    assert list(my_snake.head_history) == [IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(my_snake.head_history) == [XY(3, 1), XY(2, 1), XY(1, 1)]
     assert my_snake.grow_uncertain
     assert my_snake.grow == 0
     assert my_snake.alive
     assert my_snake.score == 5
-    assert my_snake.head_pos == IntTuple(3, 2)
-    assert my_snake.tail_pos == IntTuple(1, 1)
+    assert my_snake.head_pos == XY(3, 2)
+    assert my_snake.tail_pos == XY(1, 1)
 
 
 def test_observe_state_changes_stop_growing():
@@ -205,9 +205,9 @@ def test_observe_state_changes_stop_growing():
         '        ',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.length = 3
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     snake1.grow_uncertain = True
     snake1.grow = 0
     snake1.score = 5
@@ -223,14 +223,14 @@ def test_observe_state_changes_stop_growing():
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     game_state = robot.observe_state_changes(old_state, robot.world, 1)
 
-    assert game_state.world_size == IntTuple(4, 4)
+    assert game_state.world_size == XY(4, 4)
     my_snake = game_state.my_snake
     assert my_snake is not None
     assert my_snake.color == 1
-    assert my_snake.head_pos == IntTuple(3, 2)
-    assert my_snake.tail_pos == IntTuple(2, 1)
+    assert my_snake.head_pos == XY(3, 2)
+    assert my_snake.tail_pos == XY(2, 1)
     assert my_snake.length == 3
-    assert list(my_snake.head_history) == [IntTuple(3, 1), IntTuple(2, 1)]
+    assert list(my_snake.head_history) == [XY(3, 1), XY(2, 1)]
     assert not my_snake.grow_uncertain
     assert my_snake.grow == 0
     assert my_snake.alive
@@ -244,9 +244,9 @@ def test_observe_state_changes_eat():
         '        ',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.length = 3
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     snake1.grow_uncertain = True
     snake1.grow = 0
     snake1.score = 5
@@ -262,14 +262,14 @@ def test_observe_state_changes_eat():
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     game_state = robot.observe_state_changes(old_state, robot.world, 1)
 
-    assert game_state.world_size == IntTuple(4, 4)
+    assert game_state.world_size == XY(4, 4)
     my_snake = game_state.my_snake
     assert my_snake is not None
     assert my_snake.color == 1
-    assert my_snake.head_pos == IntTuple(3, 0)
-    assert my_snake.tail_pos == IntTuple(2, 1)
+    assert my_snake.head_pos == XY(3, 0)
+    assert my_snake.tail_pos == XY(2, 1)
     assert my_snake.length == 3
-    assert list(my_snake.head_history) == [IntTuple(3, 1), IntTuple(2, 1)]
+    assert list(my_snake.head_history) == [XY(3, 1), XY(2, 1)]
     assert not my_snake.grow_uncertain
     assert my_snake.grow == 8
     assert my_snake.alive
@@ -283,9 +283,9 @@ def test_observe_state_changes_missed_frame():
         '        ',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.length = 3
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     snake1.grow_uncertain = True
     snake1.grow = 0
     snake1.score = 5
@@ -301,14 +301,14 @@ def test_observe_state_changes_missed_frame():
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     game_state = robot.observe_state_changes(old_state, robot.world, 1)
 
-    assert game_state.world_size == IntTuple(4, 4)
+    assert game_state.world_size == XY(4, 4)
     my_snake = game_state.my_snake
     assert my_snake is not None
     assert my_snake.color == 1
-    assert my_snake.head_pos == IntTuple(3, 3)
-    assert my_snake.tail_pos == IntTuple(3, 1)
+    assert my_snake.head_pos == XY(3, 3)
+    assert my_snake.tail_pos == XY(3, 1)
     assert my_snake.length == 3
-    assert list(my_snake.head_history) == [IntTuple(3, 2), IntTuple(3, 1)]
+    assert list(my_snake.head_history) == [XY(3, 2), XY(3, 1)]
     assert my_snake.grow_uncertain
     assert my_snake.grow == 0
     assert my_snake.alive
@@ -322,9 +322,9 @@ def test_observe_state_changes_missed_frame2():
         '        ',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.length = 3
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     snake1.grow_uncertain = True
     snake1.grow = 0
     snake1.score = 5
@@ -340,14 +340,14 @@ def test_observe_state_changes_missed_frame2():
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     game_state = robot.observe_state_changes(old_state, robot.world, 1)
 
-    assert game_state.world_size == IntTuple(4, 4)
+    assert game_state.world_size == XY(4, 4)
     my_snake = game_state.my_snake
     assert my_snake is not None
     assert my_snake.color == 1
-    assert my_snake.head_pos == IntTuple(3, 3)
-    assert my_snake.tail_pos == IntTuple(1, 1)
+    assert my_snake.head_pos == XY(3, 3)
+    assert my_snake.tail_pos == XY(1, 1)
     assert my_snake.length == 5
-    assert list(my_snake.head_history) == [IntTuple(3, 2), IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(my_snake.head_history) == [XY(3, 2), XY(3, 1), XY(2, 1), XY(1, 1)]
     assert my_snake.grow_uncertain
     assert my_snake.grow == 0
     assert my_snake.alive
@@ -361,9 +361,9 @@ def test_observe_state_changes_appear():
         '        ',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.length = 3
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     snake1.grow_uncertain = True
     snake1.grow = 1
     snake1.score = 5
@@ -379,31 +379,31 @@ def test_observe_state_changes_appear():
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     game_state = robot.observe_state_changes(old_state, robot.world, 1)
 
-    assert game_state.world_size == IntTuple(4, 4)
+    assert game_state.world_size == XY(4, 4)
     my_snake = game_state.my_snake
     assert my_snake is not None
     assert my_snake.color == 1
     assert my_snake.length == 4
-    assert list(my_snake.head_history) == [IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(my_snake.head_history) == [XY(3, 1), XY(2, 1), XY(1, 1)]
     assert my_snake.grow_uncertain
     assert my_snake.grow == 0
     assert my_snake.alive
     assert my_snake.score == 5
-    assert my_snake.head_pos == IntTuple(3, 2)
-    assert my_snake.tail_pos == IntTuple(1, 1)
+    assert my_snake.head_pos == XY(3, 2)
+    assert my_snake.tail_pos == XY(1, 1)
 
     assert game_state.enemy_snake is not None
     assert game_state.enemy_snake.color == 2
     snake2 = game_state.snakes_by_color[2]
     assert snake2.color == 2
     assert snake2.length == 3
-    assert list(snake2.head_history) == [IntTuple(0, 1), IntTuple(0, 0)]
+    assert list(snake2.head_history) == [XY(0, 1), XY(0, 0)]
     assert snake2.grow_uncertain
     assert snake2.grow == 0
     assert snake2.alive
     assert snake2.score == 0
-    assert snake2.head_pos == IntTuple(0, 2)
-    assert snake2.tail_pos == IntTuple(0, 0)
+    assert snake2.head_pos == XY(0, 2)
+    assert snake2.tail_pos == XY(0, 0)
 
 
 def test_observe_state_changes_die():
@@ -413,16 +413,16 @@ def test_observe_state_changes_die():
         '@2      ',
         '        ',
     ])
-    old_snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    old_snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     old_snake1.length = 3
-    old_snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    old_snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     old_snake1.grow_uncertain = True
     old_snake1.grow = 1
     old_snake1.score = 5
 
-    old_snake2 = Snake(True, IntTuple(0, 2), IntTuple(0, 0), 2)
+    old_snake2 = Snake(True, XY(0, 2), XY(0, 0), 2)
     old_snake2.length = 3
-    old_snake2.head_history = deque([IntTuple(0, 1), IntTuple(0, 0)])
+    old_snake2.head_history = deque([XY(0, 1), XY(0, 0)])
     old_snake2.grow_uncertain = True
     old_snake2.grow = 0
     old_snake2.score = 9
@@ -438,29 +438,29 @@ def test_observe_state_changes_die():
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     game_state = robot.observe_state_changes(old_state, robot.world, 1)
 
-    assert game_state.world_size == IntTuple(4, 4)
+    assert game_state.world_size == XY(4, 4)
     my_snake = game_state.my_snake
     assert my_snake is not None
     assert my_snake.color == 1
     assert my_snake.length == 4
-    assert list(my_snake.head_history) == [IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(my_snake.head_history) == [XY(3, 1), XY(2, 1), XY(1, 1)]
     assert my_snake.grow_uncertain
     assert my_snake.grow == 0
     assert my_snake.alive
     assert my_snake.score == 5
-    assert my_snake.head_pos == IntTuple(3, 2)
-    assert my_snake.tail_pos == IntTuple(1, 1)
+    assert my_snake.head_pos == XY(3, 2)
+    assert my_snake.tail_pos == XY(1, 1)
 
     snake2 = game_state.snakes_by_color[2]
     assert not snake2.alive
     assert snake2.score == 9
     assert snake2.color == 2
     assert snake2.length == 3
-    assert list(snake2.head_history) == [IntTuple(0, 1), IntTuple(0, 0)]
+    assert list(snake2.head_history) == [XY(0, 1), XY(0, 0)]
     assert snake2.grow_uncertain
     assert snake2.grow == 0
-    assert snake2.head_pos == IntTuple(0, 2)
-    assert snake2.tail_pos == IntTuple(0, 0)
+    assert snake2.head_pos == XY(0, 2)
+    assert snake2.tail_pos == XY(0, 0)
 
 
 def test_advance_game_simple_move():
@@ -470,11 +470,11 @@ def test_advance_game_simple_move():
         '        ',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
@@ -489,7 +489,7 @@ def test_advance_game_simple_move():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(3, 1), IntTuple(2, 1)]
+    assert list(new_snake1.head_history) == [XY(3, 1), XY(2, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert not new_snake1.grow_uncertain
@@ -502,11 +502,11 @@ def test_advance_game_simple_grow():
         '        ',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 2
     snake1.grow_uncertain = False
     snake1.length = 3
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
@@ -521,7 +521,7 @@ def test_advance_game_simple_grow():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(3, 1), XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 4
     assert new_snake1.grow == 1
     assert not new_snake1.grow_uncertain
@@ -534,12 +534,12 @@ def test_advance_game_simple_eat():
         '      21',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
@@ -554,7 +554,7 @@ def test_advance_game_simple_eat():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(3, 1), IntTuple(2, 1)]
+    assert list(new_snake1.head_history) == [XY(3, 1), XY(2, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 2
     assert new_snake1.score == 4 + 2
@@ -568,12 +568,12 @@ def test_advance_game_simple_eat_growing():
         '      21',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 2
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
@@ -588,7 +588,7 @@ def test_advance_game_simple_eat_growing():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(3, 1), XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 4
     assert new_snake1.grow == 3
     assert new_snake1.score == 4 + 2
@@ -602,12 +602,12 @@ def test_advance_game_simple_crash_wall():
         '        ',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
@@ -622,7 +622,7 @@ def test_advance_game_simple_crash_wall():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -636,12 +636,12 @@ def test_advance_game_simple_crash_dead_tail():
         '      % ',
         '    x + ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
@@ -656,7 +656,7 @@ def test_advance_game_simple_crash_dead_tail():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -670,12 +670,12 @@ def test_advance_game_simple_crash_dead_body():
         '    % + ',
         '    x + ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
@@ -690,7 +690,7 @@ def test_advance_game_simple_crash_dead_body():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -704,12 +704,12 @@ def test_advance_game_simple_crash_dead_head():
         '  % + x ',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
     game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
@@ -724,7 +724,7 @@ def test_advance_game_simple_crash_dead_head():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -738,12 +738,12 @@ def test_advance_game_simple_suicide():
         '    @1*1',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(2, 2), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(2, 2), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 5
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(3, 2), IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(3, 2), XY(3, 1), XY(2, 1), XY(1, 1)])
     game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
@@ -758,7 +758,7 @@ def test_advance_game_simple_suicide():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(3, 2), IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(3, 2), XY(3, 1), XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 5
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -772,12 +772,12 @@ def test_advance_game_simple_tail_grow_suicide():
         '  @1*1*1',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(1, 2), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(1, 2), XY(1, 1), 1)
     snake1.grow = 1
     snake1.grow_uncertain = False
     snake1.length = 6
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 2), IntTuple(3, 2), IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 2), XY(3, 2), XY(3, 1), XY(2, 1), XY(1, 1)])
     game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
@@ -792,8 +792,8 @@ def test_advance_game_simple_tail_grow_suicide():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 2), IntTuple(3, 2), IntTuple(3, 1), IntTuple(2, 1),
-                                             IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(2, 2), XY(3, 2), XY(3, 1), XY(2, 1),
+                                             XY(1, 1)]
     assert new_snake1.length == 6
     assert new_snake1.grow == 1
     assert new_snake1.score == 4
@@ -807,12 +807,12 @@ def test_advance_game_simple_tail_chase():
         '  @1*1*1',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(1, 2), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(1, 2), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 6
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 2), IntTuple(3, 2), IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 2), XY(3, 2), XY(3, 1), XY(2, 1), XY(1, 1)])
     game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
@@ -827,8 +827,8 @@ def test_advance_game_simple_tail_chase():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(1, 2), IntTuple(2, 2), IntTuple(3, 2), IntTuple(3, 1),
-                                             IntTuple(2, 1)]
+    assert list(new_snake1.head_history) == [XY(1, 2), XY(2, 2), XY(3, 2), XY(3, 1),
+                                             XY(2, 1)]
     assert new_snake1.length == 6
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -842,19 +842,19 @@ def test_advance_game_double_move():
         '  $2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 2), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 2), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -870,7 +870,7 @@ def test_advance_game_double_move():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(3, 1), IntTuple(2, 1)]
+    assert list(new_snake1.head_history) == [XY(3, 1), XY(2, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -878,7 +878,7 @@ def test_advance_game_double_move():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(3, 2), IntTuple(2, 2)]
+    assert list(new_snake2.head_history) == [XY(3, 2), XY(2, 2)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -892,19 +892,19 @@ def test_advance_game_double_grow_one():
         '  $2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 2
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 2), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 2), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -920,7 +920,7 @@ def test_advance_game_double_grow_one():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(3, 1), XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 4
     assert new_snake1.grow == 1
     assert new_snake1.score == 4
@@ -928,7 +928,7 @@ def test_advance_game_double_grow_one():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(3, 2), IntTuple(2, 2)]
+    assert list(new_snake2.head_history) == [XY(3, 2), XY(2, 2)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -942,19 +942,19 @@ def test_advance_game_double_grow_two():
         '  $2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 2), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 2), 2)
     snake2.grow = 1
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -970,7 +970,7 @@ def test_advance_game_double_grow_two():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(3, 1), IntTuple(2, 1)]
+    assert list(new_snake1.head_history) == [XY(3, 1), XY(2, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -978,7 +978,7 @@ def test_advance_game_double_grow_two():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(3, 2), IntTuple(2, 2), IntTuple(1, 2)]
+    assert list(new_snake2.head_history) == [XY(3, 2), XY(2, 2), XY(1, 2)]
     assert new_snake2.length == 4
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -992,19 +992,19 @@ def test_advance_game_double_grow_both():
         '  $2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 2
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 2), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 2), 2)
     snake2.grow = 1
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1020,7 +1020,7 @@ def test_advance_game_double_grow_both():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(3, 1), XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 4
     assert new_snake1.grow == 1
     assert new_snake1.score == 4
@@ -1028,7 +1028,7 @@ def test_advance_game_double_grow_both():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(3, 2), IntTuple(2, 2), IntTuple(1, 2)]
+    assert list(new_snake2.head_history) == [XY(3, 2), XY(2, 2), XY(1, 2)]
     assert new_snake2.length == 4
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1042,19 +1042,19 @@ def test_advance_game_double_crash_to_dying_body():
         '$2*2@2  ',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
 
-    snake2 = Snake(True, IntTuple(2, 2), IntTuple(0, 2), 2)
+    snake2 = Snake(True, XY(2, 2), XY(0, 2), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(1, 2), IntTuple(0, 2)])
+    snake2.head_history = deque([XY(1, 2), XY(0, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1070,7 +1070,7 @@ def test_advance_game_double_crash_to_dying_body():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1078,7 +1078,7 @@ def test_advance_game_double_crash_to_dying_body():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert not new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(1, 2), IntTuple(0, 2)]
+    assert list(new_snake2.head_history) == [XY(1, 2), XY(0, 2)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1092,19 +1092,19 @@ def test_advance_game_double_crash_to_dying_body2():
         '  $2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(2, 1), IntTuple(0, 1), 1)
+    snake1 = Snake(True, XY(2, 1), XY(0, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(1, 1), IntTuple(0, 1)])
+    snake1.head_history = deque([XY(1, 1), XY(0, 1)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 2), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 2), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1120,7 +1120,7 @@ def test_advance_game_double_crash_to_dying_body2():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(1, 1), IntTuple(0, 1)]
+    assert list(new_snake1.head_history) == [XY(1, 1), XY(0, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1128,7 +1128,7 @@ def test_advance_game_double_crash_to_dying_body2():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert not new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(2, 2), IntTuple(1, 2)]
+    assert list(new_snake2.head_history) == [XY(2, 2), XY(1, 2)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1142,19 +1142,19 @@ def test_advance_game_double_crash_to_dying_tail():
         '*2@2    ',
         '$2      ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
 
-    snake2 = Snake(True, IntTuple(1, 2), IntTuple(0, 3), 2)
+    snake2 = Snake(True, XY(1, 2), XY(0, 3), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(0, 2), IntTuple(0, 3)])
+    snake2.head_history = deque([XY(0, 2), XY(0, 3)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1170,7 +1170,7 @@ def test_advance_game_double_crash_to_dying_tail():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1178,7 +1178,7 @@ def test_advance_game_double_crash_to_dying_tail():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert not new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(0, 2), IntTuple(0, 3)]
+    assert list(new_snake2.head_history) == [XY(0, 2), XY(0, 3)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1192,19 +1192,19 @@ def test_advance_game_double_crash_to_dying_tail2():
         '  $2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(1, 1), IntTuple(0, 0), 1)
+    snake1 = Snake(True, XY(1, 1), XY(0, 0), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(0, 1), IntTuple(0, 0)])
+    snake1.head_history = deque([XY(0, 1), XY(0, 0)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 2), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 2), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1220,7 +1220,7 @@ def test_advance_game_double_crash_to_dying_tail2():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(0, 1), IntTuple(0, 0)]
+    assert list(new_snake1.head_history) == [XY(0, 1), XY(0, 0)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1228,7 +1228,7 @@ def test_advance_game_double_crash_to_dying_tail2():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert not new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(2, 2), IntTuple(1, 2)]
+    assert list(new_snake2.head_history) == [XY(2, 2), XY(1, 2)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1242,19 +1242,19 @@ def test_advance_game_double_crash_to_dying_head():
         '  $2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 2), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 2), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1270,7 +1270,7 @@ def test_advance_game_double_crash_to_dying_head():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1278,7 +1278,7 @@ def test_advance_game_double_crash_to_dying_head():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert not new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(2, 2), IntTuple(1, 2)]
+    assert list(new_snake2.head_history) == [XY(2, 2), XY(1, 2)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1292,19 +1292,19 @@ def test_advance_game_double_crash_to_dying_head2():
         '  $2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 2), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 2), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1320,7 +1320,7 @@ def test_advance_game_double_crash_to_dying_head2():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1328,7 +1328,7 @@ def test_advance_game_double_crash_to_dying_head2():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert not new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(2, 2), IntTuple(1, 2)]
+    assert list(new_snake2.head_history) == [XY(2, 2), XY(1, 2)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1342,19 +1342,19 @@ def test_advance_game_double_frontal_crash():
         '  $2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(3, 1), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 1), XY(1, 1)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 2), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 2), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1370,7 +1370,7 @@ def test_advance_game_double_frontal_crash():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(2, 1), XY(1, 1)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1378,7 +1378,7 @@ def test_advance_game_double_frontal_crash():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert not new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(2, 2), IntTuple(1, 2)]
+    assert list(new_snake2.head_history) == [XY(2, 2), XY(1, 2)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1392,19 +1392,19 @@ def test_advance_game_double_frontal_crash2():
         '  $1*1@1',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 2), IntTuple(1, 2), 1)
+    snake1 = Snake(True, XY(3, 2), XY(1, 2), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
+    snake1.head_history = deque([XY(2, 2), XY(1, 2)])
 
-    snake2 = Snake(True, IntTuple(3, 1), IntTuple(1, 1), 2)
+    snake2 = Snake(True, XY(3, 1), XY(1, 1), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
+    snake2.head_history = deque([XY(2, 1), XY(1, 1)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1420,7 +1420,7 @@ def test_advance_game_double_frontal_crash2():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 2), IntTuple(1, 2)]
+    assert list(new_snake1.head_history) == [XY(2, 2), XY(1, 2)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1428,7 +1428,7 @@ def test_advance_game_double_frontal_crash2():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert not new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake2.head_history) == [XY(2, 1), XY(1, 1)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1442,19 +1442,19 @@ def test_advance_game_double_frontal_crash3():
         '  $2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 0), IntTuple(1, 0), 1)
+    snake1 = Snake(True, XY(3, 0), XY(1, 0), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 0), IntTuple(1, 0)])
+    snake1.head_history = deque([XY(2, 0), XY(1, 0)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 2), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 2), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1470,7 +1470,7 @@ def test_advance_game_double_frontal_crash3():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(3, 0), IntTuple(2, 0)]
+    assert list(new_snake1.head_history) == [XY(3, 0), XY(2, 0)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1478,7 +1478,7 @@ def test_advance_game_double_frontal_crash3():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert not new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(3, 2), IntTuple(2, 2)]
+    assert list(new_snake2.head_history) == [XY(3, 2), XY(2, 2)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1492,19 +1492,19 @@ def test_advance_game_double_frontal_crash3_eat():
         '  $2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(3, 0), IntTuple(1, 0), 1)
+    snake1 = Snake(True, XY(3, 0), XY(1, 0), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 0), IntTuple(1, 0)])
+    snake1.head_history = deque([XY(2, 0), XY(1, 0)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 2), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 2), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1520,7 +1520,7 @@ def test_advance_game_double_frontal_crash3_eat():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(3, 0), IntTuple(2, 0)]
+    assert list(new_snake1.head_history) == [XY(3, 0), XY(2, 0)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1528,7 +1528,7 @@ def test_advance_game_double_frontal_crash3_eat():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert not new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(3, 2), IntTuple(2, 2)]
+    assert list(new_snake2.head_history) == [XY(3, 2), XY(2, 2)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1542,19 +1542,19 @@ def test_advance_game_double_tail_grow_kill():
         '  *2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(1, 0), IntTuple(3, 0), 1)
+    snake1 = Snake(True, XY(1, 0), XY(3, 0), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 0), IntTuple(3, 0)])
+    snake1.head_history = deque([XY(2, 0), XY(3, 0)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 1), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 1), 2)
     snake2.grow = 1
     snake2.grow_uncertain = False
     snake2.length = 4
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2), IntTuple(1, 1)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2), XY(1, 1)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1570,7 +1570,7 @@ def test_advance_game_double_tail_grow_kill():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 0), IntTuple(3, 0)]
+    assert list(new_snake1.head_history) == [XY(2, 0), XY(3, 0)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1578,7 +1578,7 @@ def test_advance_game_double_tail_grow_kill():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(3, 2), IntTuple(2, 2), IntTuple(1, 2), IntTuple(1, 1)]
+    assert list(new_snake2.head_history) == [XY(3, 2), XY(2, 2), XY(1, 2), XY(1, 1)]
     assert new_snake2.length == 5
     assert new_snake2.grow == 0
     assert new_snake2.score == 1006
@@ -1592,19 +1592,19 @@ def test_advance_game_double_tail_chase():
         '  *2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(1, 0), IntTuple(3, 0), 1)
+    snake1 = Snake(True, XY(1, 0), XY(3, 0), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 0), IntTuple(3, 0)])
+    snake1.head_history = deque([XY(2, 0), XY(3, 0)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 1), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 1), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 4
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2), IntTuple(1, 1)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2), XY(1, 1)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1620,7 +1620,7 @@ def test_advance_game_double_tail_chase():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(1, 0), IntTuple(2, 0)]
+    assert list(new_snake1.head_history) == [XY(1, 0), XY(2, 0)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1628,7 +1628,7 @@ def test_advance_game_double_tail_chase():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(3, 2), IntTuple(2, 2), IntTuple(1, 2)]
+    assert list(new_snake2.head_history) == [XY(3, 2), XY(2, 2), XY(1, 2)]
     assert new_snake2.length == 4
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1642,19 +1642,19 @@ def test_advance_game_double_tail_chase_loop():
         '  *2*2@2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(1, 0), IntTuple(3, 1), 1)
+    snake1 = Snake(True, XY(1, 0), XY(3, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 4
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 0), IntTuple(3, 0), IntTuple(3, 1)])
+    snake1.head_history = deque([XY(2, 0), XY(3, 0), XY(3, 1)])
 
-    snake2 = Snake(True, IntTuple(3, 2), IntTuple(1, 1), 2)
+    snake2 = Snake(True, XY(3, 2), XY(1, 1), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 4
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2), IntTuple(1, 1)])
+    snake2.head_history = deque([XY(2, 2), XY(1, 2), XY(1, 1)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1670,7 +1670,7 @@ def test_advance_game_double_tail_chase_loop():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(1, 0), IntTuple(2, 0), IntTuple(3, 0)]
+    assert list(new_snake1.head_history) == [XY(1, 0), XY(2, 0), XY(3, 0)]
     assert new_snake1.length == 4
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1678,7 +1678,7 @@ def test_advance_game_double_tail_chase_loop():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(3, 2), IntTuple(2, 2), IntTuple(1, 2)]
+    assert list(new_snake2.head_history) == [XY(3, 2), XY(2, 2), XY(1, 2)]
     assert new_snake2.length == 4
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1692,20 +1692,20 @@ def test_advance_game_double_tail_chase_frontal_crash():
         '*2*1*1*1',
         '$2      ',
     ])
-    snake1 = Snake(True, IntTuple(1, 0), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(1, 0), XY(1, 1), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 8
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 0), IntTuple(3, 0), IntTuple(3, 1), IntTuple(3, 2),
-                                 IntTuple(2, 2), IntTuple(1, 2), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 0), XY(3, 0), XY(3, 1), XY(3, 2),
+                                 XY(2, 2), XY(1, 2), XY(1, 1)])
 
-    snake2 = Snake(True, IntTuple(0, 1), IntTuple(0, 3), 2)
+    snake2 = Snake(True, XY(0, 1), XY(0, 3), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(0, 2), IntTuple(0, 3)])
+    snake2.head_history = deque([XY(0, 2), XY(0, 3)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1721,8 +1721,8 @@ def test_advance_game_double_tail_chase_frontal_crash():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(1, 0), IntTuple(2, 0), IntTuple(3, 0), IntTuple(3, 1),
-                                             IntTuple(3, 2), IntTuple(2, 2), IntTuple(1, 2)]
+    assert list(new_snake1.head_history) == [XY(1, 0), XY(2, 0), XY(3, 0), XY(3, 1),
+                                             XY(3, 2), XY(2, 2), XY(1, 2)]
     assert new_snake1.length == 8
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1730,7 +1730,7 @@ def test_advance_game_double_tail_chase_frontal_crash():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert not new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(0, 1), IntTuple(0, 2)]
+    assert list(new_snake2.head_history) == [XY(0, 1), XY(0, 2)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1744,20 +1744,20 @@ def test_advance_game_double_tail_chase_frontal_crash_grow():
         '*2*1*1*1',
         '$2      ',
     ])
-    snake1 = Snake(True, IntTuple(1, 0), IntTuple(1, 1), 1)
+    snake1 = Snake(True, XY(1, 0), XY(1, 1), 1)
     snake1.grow = 1
     snake1.grow_uncertain = False
     snake1.length = 8
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 0), IntTuple(3, 0), IntTuple(3, 1), IntTuple(3, 2),
-                                 IntTuple(2, 2), IntTuple(1, 2), IntTuple(1, 1)])
+    snake1.head_history = deque([XY(2, 0), XY(3, 0), XY(3, 1), XY(3, 2),
+                                 XY(2, 2), XY(1, 2), XY(1, 1)])
 
-    snake2 = Snake(True, IntTuple(0, 1), IntTuple(0, 3), 2)
+    snake2 = Snake(True, XY(0, 1), XY(0, 3), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(0, 2), IntTuple(0, 3)])
+    snake2.head_history = deque([XY(0, 2), XY(0, 3)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1773,8 +1773,8 @@ def test_advance_game_double_tail_chase_frontal_crash_grow():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 0), IntTuple(3, 0), IntTuple(3, 1), IntTuple(3, 2),
-                                             IntTuple(2, 2), IntTuple(1, 2), IntTuple(1, 1)]
+    assert list(new_snake1.head_history) == [XY(2, 0), XY(3, 0), XY(3, 1), XY(3, 2),
+                                             XY(2, 2), XY(1, 2), XY(1, 1)]
     assert new_snake1.length == 8
     assert new_snake1.grow == 1
     assert new_snake1.score == 4
@@ -1782,7 +1782,7 @@ def test_advance_game_double_tail_chase_frontal_crash_grow():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert not new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(0, 2), IntTuple(0, 3)]
+    assert list(new_snake2.head_history) == [XY(0, 2), XY(0, 3)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
@@ -1796,19 +1796,19 @@ def test_advance_game_double_body_kill():
         '        ',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(1, 0), IntTuple(3, 0), 1)
+    snake1 = Snake(True, XY(1, 0), XY(3, 0), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 0), IntTuple(3, 0)])
+    snake1.head_history = deque([XY(2, 0), XY(3, 0)])
 
-    snake2 = Snake(True, IntTuple(2, 1), IntTuple(0, 1), 2)
+    snake2 = Snake(True, XY(2, 1), XY(0, 1), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(1, 1), IntTuple(0, 1)])
+    snake2.head_history = deque([XY(1, 1), XY(0, 1)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1824,7 +1824,7 @@ def test_advance_game_double_body_kill():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 0), IntTuple(3, 0)]
+    assert list(new_snake1.head_history) == [XY(2, 0), XY(3, 0)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1832,7 +1832,7 @@ def test_advance_game_double_body_kill():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(2, 1), IntTuple(1, 1)]
+    assert list(new_snake2.head_history) == [XY(2, 1), XY(1, 1)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 1006
@@ -1846,19 +1846,19 @@ def test_advance_game_double_body_kill2():
         '$2      ',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(1, 0), IntTuple(3, 0), 1)
+    snake1 = Snake(True, XY(1, 0), XY(3, 0), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 0), IntTuple(3, 0)])
+    snake1.head_history = deque([XY(2, 0), XY(3, 0)])
 
-    snake2 = Snake(True, IntTuple(1, 1), IntTuple(0, 2), 2)
+    snake2 = Snake(True, XY(1, 1), XY(0, 2), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 3
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(0, 1), IntTuple(0, 2)])
+    snake2.head_history = deque([XY(0, 1), XY(0, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1874,7 +1874,7 @@ def test_advance_game_double_body_kill2():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 0), IntTuple(3, 0)]
+    assert list(new_snake1.head_history) == [XY(2, 0), XY(3, 0)]
     assert new_snake1.length == 3
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1882,7 +1882,7 @@ def test_advance_game_double_body_kill2():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(1, 1), IntTuple(0, 1)]
+    assert list(new_snake2.head_history) == [XY(1, 1), XY(0, 1)]
     assert new_snake2.length == 3
     assert new_snake2.grow == 0
     assert new_snake2.score == 1006
@@ -1896,19 +1896,19 @@ def test_advance_game_double_mutual_body_kill():
         '  *2*2$2',
         '        ',
     ])
-    snake1 = Snake(True, IntTuple(2, 1), IntTuple(0, 0), 1)
+    snake1 = Snake(True, XY(2, 1), XY(0, 0), 1)
     snake1.grow = 0
     snake1.grow_uncertain = False
     snake1.length = 4
     snake1.score = 4
-    snake1.head_history = deque([IntTuple(2, 0), IntTuple(1, 0), IntTuple(0, 0)])
+    snake1.head_history = deque([XY(2, 0), XY(1, 0), XY(0, 0)])
 
-    snake2 = Snake(True, IntTuple(1, 1), IntTuple(3, 2), 2)
+    snake2 = Snake(True, XY(1, 1), XY(3, 2), 2)
     snake2.grow = 0
     snake2.grow_uncertain = False
     snake2.length = 4
     snake2.score = 6
-    snake2.head_history = deque([IntTuple(1, 2), IntTuple(2, 2), IntTuple(3, 2)])
+    snake2.head_history = deque([XY(1, 2), XY(2, 2), XY(3, 2)])
 
     game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
@@ -1924,7 +1924,7 @@ def test_advance_game_double_mutual_body_kill():
     ]
     new_snake1 = new_state.snakes_by_color[1]
     assert not new_snake1.alive
-    assert list(new_snake1.head_history) == [IntTuple(2, 0), IntTuple(1, 0), IntTuple(0, 0)]
+    assert list(new_snake1.head_history) == [XY(2, 0), XY(1, 0), XY(0, 0)]
     assert new_snake1.length == 4
     assert new_snake1.grow == 0
     assert new_snake1.score == 4
@@ -1932,7 +1932,7 @@ def test_advance_game_double_mutual_body_kill():
 
     new_snake2 = new_state.snakes_by_color[2]
     assert not new_snake2.alive
-    assert list(new_snake2.head_history) == [IntTuple(1, 2), IntTuple(2, 2), IntTuple(3, 2)]
+    assert list(new_snake2.head_history) == [XY(1, 2), XY(2, 2), XY(3, 2)]
     assert new_snake2.length == 4
     assert new_snake2.grow == 0
     assert new_snake2.score == 6
