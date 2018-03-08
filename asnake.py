@@ -99,9 +99,35 @@ def neighbours(position):
     yield position + IntTuple(-1, 0)  # left
 
 
-GAME_CHARS = ''.join([RobotSnake.CH_VOID, RobotSnake.CH_STONE, RobotSnake.CH_HEAD, RobotSnake.CH_BODY,
-                      RobotSnake.CH_TAIL, RobotSnake.CH_DEAD_HEAD, RobotSnake.CH_DEAD_BODY, RobotSnake.CH_DEAD_TAIL,
-                      '1', '2', '3', '4', '5', '6', '7', '8', '9'])
+WORLD_VOID = 0
+# 1..9 are yummies
+WORLD_TAIL = 10
+WORLD_BODY = 11
+WORLD_HEAD = 12
+WORLD_DEAD_TAIL = 13
+WORLD_DEAD_BODY = 14
+WORLD_DEAD_HEAD = 15
+WORLD_STONE = 16
+
+GAME_CHARS = {
+    ' ': WORLD_VOID,
+    '1': 1,
+    '2': 2,
+    '3': 3,
+    '4': 4,
+    '5': 5,
+    '6': 6,
+    '7': 7,
+    '8': 8,
+    '9': 9,
+    RobotSnake.CH_TAIL: WORLD_TAIL,
+    RobotSnake.CH_BODY: WORLD_BODY,
+    RobotSnake.CH_HEAD: WORLD_HEAD,
+    RobotSnake.CH_DEAD_TAIL: WORLD_DEAD_TAIL,
+    RobotSnake.CH_DEAD_BODY: WORLD_DEAD_BODY,
+    RobotSnake.CH_DEAD_HEAD: WORLD_DEAD_HEAD,
+    RobotSnake.CH_STONE: WORLD_STONE,
+}
 
 
 class GameState:
@@ -126,7 +152,8 @@ class GameState:
             index = 0
             for y in range(self.world_size.y):
                 for x in range(self.world_size.x):
-                    self.world[index] = self._encode_value(world[y][x])
+                    char, color = world[y][x]
+                    self.world[index] = GAME_CHARS[char] | (color << 5)
                     index += 1
             self.snakes_by_color = snakes_by_color
             self.my_snake = None  # type: Optional[Snake]
@@ -134,17 +161,14 @@ class GameState:
             self.frame_no = frame_no
 
     @staticmethod
-    def _encode_value(value: Tuple[str, int]) -> int:
+    def _encode_value(value: Tuple[int, int]) -> int:
         """Encode a given tuple of char, color to a single byte"""
         char, color = value
-        try:
-            return GAME_CHARS.index(char) | (color << 5)
-        except ValueError:
-            raise ValueError('Cannot encode {!r}'.format(value))
+        return char | (color << 5)
 
     @staticmethod
-    def _decode_value(byte: int) -> Tuple[str, int]:
-        return GAME_CHARS[byte & 0x1f], byte >> 5
+    def _decode_value(byte: int) -> Tuple[int, int]:
+        return byte & 0x1f, byte >> 5
 
     def world_iter(self):
         index = 0
@@ -153,7 +177,7 @@ class GameState:
                 yield x, y, self._decode_value(self.world[index])
                 index += 1
 
-    def world_get(self, position: IntTuple) -> Tuple[str, int]:
+    def world_get(self, position: IntTuple) -> Tuple[int, int]:
         """Get the state of world at given position.
 
         This does bounds checks and returns stones for positions outside of the play area to simplify the code.
@@ -161,12 +185,12 @@ class GameState:
         :return tuple of (world char, color)
         """
         if position.x < 0 or position.x >= self.world_size.x:
-            return RobotSnake.CH_STONE, 0
+            return WORLD_STONE, 0
         if position.y < 0 or position.y >= self.world_size.y:
-            return RobotSnake.CH_STONE, 0
+            return WORLD_STONE, 0
         return self._decode_value(self.world[position.y * self.world_size.x + position.x])
 
-    def world_get2(self, position: Tuple[int, int]) -> Tuple[str, int]:
+    def world_get2(self, position: Tuple[int, int]) -> Tuple[int, int]:
         """Get the state of world at given position.
 
         This does bounds checks and returns stones for positions outside of the play area to simplify the code.
@@ -175,12 +199,12 @@ class GameState:
         """
         position_x, position_y = position
         if position_x < 0 or position_x >= self.world_size.x:
-            return RobotSnake.CH_STONE, 0
+            return WORLD_STONE, 0
         if position_y < 0 or position_y >= self.world_size.y:
-            return RobotSnake.CH_STONE, 0
+            return WORLD_STONE, 0
         return self._decode_value(self.world[position_y * self.world_size.x + position_x])
 
-    def world_set(self, position: IntTuple, value: Tuple[str, int]):
+    def world_set(self, position: IntTuple, value: Tuple[int, int]):
         """Set the state of world at given position.
 
         This does bounds checks.
@@ -190,13 +214,6 @@ class GameState:
         if position.y < 0 or position.y >= self.world_size.y:
             return
         self.world[position.y * self.world_size.x + position.x] = self._encode_value(value)
-
-    def world_yummy(self, position: IntTuple) -> int:
-        """Return yummy value at the given position. If the position is not edible, return 0"""
-        char, color = self.world_get(position)
-        if char.isdigit():
-            return int(char)
-        return 0
 
     def trace_snake_path(self, start_pos: IntTuple) -> List[IntTuple]:
         """Given a head or tail position of the snake, find the segments of the path until they can be uniquely followed.
@@ -217,7 +234,7 @@ class GameState:
                 if len(segments) > 1 and candidate_position == segments[-2]:
                     continue
                 candidate_char, candidate_color = self.world_get(candidate_position)
-                if candidate_char in RobotSnake.BODY_CHARS and candidate_color == color:
+                if WORLD_TAIL <= candidate_char <= WORLD_HEAD and candidate_color == color:
                     paths.append(candidate_position)
 
             if len(paths) != 1:
@@ -232,13 +249,13 @@ class GameState:
 
     def mark_dead(self, dead_color: int):
         trans = bytes.maketrans(bytes([
-            self._encode_value((RobotSnake.CH_HEAD, dead_color)),
-            self._encode_value((RobotSnake.CH_BODY, dead_color)),
-            self._encode_value((RobotSnake.CH_TAIL, dead_color)),
+            WORLD_HEAD | (dead_color << 5),
+            WORLD_BODY | (dead_color << 5),
+            WORLD_TAIL | (dead_color << 5),
         ]), bytes([
-            self._encode_value((RobotSnake.CH_DEAD_HEAD, 0)),
-            self._encode_value((RobotSnake.CH_DEAD_BODY, 0)),
-            self._encode_value((RobotSnake.CH_DEAD_TAIL, 0)),
+            WORLD_DEAD_HEAD,
+            WORLD_DEAD_BODY,
+            WORLD_DEAD_TAIL,
         ]))
         self.world = self.world.translate(trans)
         self.snakes_by_color[dead_color].alive = False
@@ -253,12 +270,6 @@ BFSResult = namedtuple('BFSResult', ('position_stats', 'fully_explored_distance'
 
 
 class MyRobotSnake(RobotSnake):
-    OCCUPIED_CHARS = RobotSnake.DEAD_BODY_CHARS\
-        .union(RobotSnake.BODY_CHARS).union([RobotSnake.CH_STONE])\
-        .difference(RobotSnake.CH_TAIL)
-
-    OCCUPIED_CHARS_ALL = RobotSnake.DEAD_BODY_CHARS.union(RobotSnake.BODY_CHARS).union([RobotSnake.CH_STONE])
-
     def __init__(self, *args, **kwargs):
         super(MyRobotSnake, self).__init__(*args, **kwargs)
         self.old_state = None  # type: Optional[GameState]
@@ -283,19 +294,34 @@ class MyRobotSnake(RobotSnake):
         old_tails_by_color = {}
         heads_by_color = {}
         lengths_by_color = defaultdict(lambda: 0)
-        for x, y, (char, color) in new_state.world_iter():
-            if char == RobotSnake.CH_TAIL:
-                tails_by_color[color] = IntTuple(x, y)
-            elif char == RobotSnake.CH_HEAD:
-                heads_by_color[color] = IntTuple(x, y)
+        index = 0
+        for y in range(new_state.world_size.y):
+            for x in range(new_state.world_size.x):
+                encoded = new_state.world[index]
+                char = encoded & 0x1f
+                color = encoded >> 5
 
-            if char in RobotSnake.BODY_CHARS:
-                lengths_by_color[color] += 1
+                if char == WORLD_TAIL:
+                    tails_by_color[color] = IntTuple(x, y)
+                elif char == WORLD_HEAD:
+                    heads_by_color[color] = IntTuple(x, y)
 
+                if WORLD_TAIL <= char <= WORLD_HEAD:
+                    lengths_by_color[color] += 1
+
+                index += 1
         if old_state:
-            for x, y, (char, color) in old_state.world_iter():
-                if char == RobotSnake.CH_TAIL:
-                    old_tails_by_color[color] = IntTuple(x, y)
+            index = 0
+            for y in range(old_state.world_size.y):
+                for x in range(old_state.world_size.x):
+                    encoded = old_state.world[index]
+                    char = encoded & 0x1f
+                    color = encoded >> 5
+
+                    if char == WORLD_TAIL:
+                        old_tails_by_color[color] = IntTuple(x, y)
+
+                    index += 1
 
         for color, position in heads_by_color.items():
             needs_trace = False
@@ -306,10 +332,10 @@ class MyRobotSnake(RobotSnake):
                     snake.head_history.appendleft(snake.head_pos)
                     snake.length += 1
                     if old_state:
-                        old_yummy = old_state.world_yummy(position)
-                        if old_yummy > 0:
-                            snake.grow += old_yummy
-                            snake.score += old_yummy
+                        old_char, old_color = old_state.world_get(position)
+                        if 1 <= old_char <= 9:
+                            snake.grow += old_char
+                            snake.score += old_char
                 else:
                     needs_trace = True
 
@@ -429,11 +455,11 @@ class MyRobotSnake(RobotSnake):
                         continue
                     # fallthrough
                 old_char, old_color = state.world_get(next_snake_heads[color])
-                if old_char in RobotSnake.DEAD_BODY_CHARS or old_char == RobotSnake.CH_STONE:
+                if WORLD_DEAD_TAIL <= old_char <= WORLD_STONE:
                     # snake dies, does not move, does not get points
                     dies.add(color)
                     continue
-                if old_char in (RobotSnake.CH_HEAD, RobotSnake.CH_BODY):
+                if WORLD_BODY <= old_char <= WORLD_HEAD:
                     # snake dies, does not move, old_color possibly gets points (if does not die in this turn)
                     dies.add(color)
                     kills[old_color].append(color)
@@ -444,7 +470,7 @@ class MyRobotSnake(RobotSnake):
                     moves.add(color)
                     continue
                 # did not crash into anything, so lives, moves
-                if old_char.isdigit():
+                if 1 <= old_char <= 9:
                     new_snake = new_state.snakes_by_color[color]
                     new_snake.grow += int(old_char)
                     new_snake.score += int(old_char)
@@ -463,17 +489,17 @@ class MyRobotSnake(RobotSnake):
                 old_tail = new_snake.head_history.pop()
                 new_tail = new_snake.head_history[-1]
                 needs_void.add(old_tail)
-                new_state.world_set(new_tail, (RobotSnake.CH_TAIL, new_snake.color))
+                new_state.world_set(new_tail, (WORLD_TAIL, new_snake.color))
                 new_snake.tail_pos = new_tail
             new_snake.head_history.appendleft(new_snake.head_pos)
-            new_state.world_set(new_snake.head_pos, (RobotSnake.CH_BODY, new_snake.color))
+            new_state.world_set(new_snake.head_pos, (WORLD_BODY, new_snake.color))
             new_snake.head_pos = next_snake_heads[color]
-            new_state.world_set(new_snake.head_pos, (RobotSnake.CH_HEAD, new_snake.color))
+            new_state.world_set(new_snake.head_pos, (WORLD_HEAD, new_snake.color))
             avoids_void.add(new_snake.head_pos)
 
         # Cleanup any tails that were not overwritten
         for void_pos in needs_void - avoids_void:
-            new_state.world_set(void_pos, (RobotSnake.CH_VOID, 0))
+            new_state.world_set(void_pos, (WORLD_VOID, 0))
 
         # Repaint dead snakes and mark them as not alive
         for color in dies:
@@ -507,12 +533,9 @@ class MyRobotSnake(RobotSnake):
         for neighbour in ((head_pos.x, head_pos.y - 1), (head_pos.x + 1, head_pos.y),
                           (head_pos.x, head_pos.y + 1), (head_pos.x - 1, head_pos.y)):
             char, color = state.world_get2(neighbour)
-            if char not in MyRobotSnake.OCCUPIED_CHARS_ALL:
-                if char.isdigit():
-                    food_value = int(char)
-                else:
-                    food_value = 0
-                positions_to_visit.append((neighbour, 1, food_value, len(initial_positions)))
+            if char < WORLD_TAIL:  # not occupied
+                # char is also food value in this case
+                positions_to_visit.append((neighbour, 1, char, len(initial_positions)))
                 enqueued_positions[neighbour] = len(initial_positions)
                 initial_positions.append(neighbour)
 
@@ -552,12 +575,9 @@ class MyRobotSnake(RobotSnake):
                     union(initial_index, enqueued_positions[neighbour])
                     continue
                 char, color = state.world_get2(neighbour)
-                if char not in MyRobotSnake.OCCUPIED_CHARS_ALL:
-                    if char.isdigit():
-                        food_value = int(char)
-                    else:
-                        food_value = 0
-                    positions_to_visit.append((neighbour, distance + 1, food_value, initial_index))
+                if char < WORLD_TAIL:  # not occupied
+                    # char is also food value in this case
+                    positions_to_visit.append((neighbour, distance + 1, char, initial_index))
                     enqueued_positions[neighbour] = initial_index
 
             visited_positions.add(position)
@@ -809,7 +829,7 @@ class MyRobotSnake(RobotSnake):
                 # try to follow a tail, we have no other option
                 for direction in DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT:
                     dir_char, dir_color = game_state.world_get(game_state.my_snake.head_pos + direction)
-                    if dir_char == RobotSnake.CH_TAIL:
+                    if dir_char == WORLD_TAIL:
                         best_move = direction
                         break
 
@@ -819,11 +839,10 @@ class MyRobotSnake(RobotSnake):
                 if my_direction is not None and direction.x == -my_direction.x and direction.y == -my_direction.y:
                     continue  # can't move backwards
                 dir_char, dir_color = game_state.world_get(game_state.my_snake.head_pos + direction)
-                if dir_char == RobotSnake.CH_VOID:
-                    non_dying_moves.append((0, direction))
-                elif dir_char.isdigit():
-                    non_dying_moves.append((ord(dir_char), direction))
-                elif dir_char == RobotSnake.CH_TAIL:
+                if dir_char < WORLD_TAIL:  # not occupied
+                    # dir_char is also food value in this case
+                    non_dying_moves.append((dir_char, direction))
+                elif dir_char == WORLD_TAIL:
                     non_dying_moves.append((-1, direction))
             if non_dying_moves:
                 random.shuffle(non_dying_moves)  # sort is stable, so will preserve the shuffle on the same level

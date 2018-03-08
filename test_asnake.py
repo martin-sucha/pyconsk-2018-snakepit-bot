@@ -1,7 +1,7 @@
 from collections import deque
 from typing import Tuple, List
 
-from asnake import GameState, IntTuple, Snake, MyRobotSnake, DIR_DOWN, DIR_RIGHT, DIR_UP
+from asnake import GameState, IntTuple, Snake, MyRobotSnake, DIR_DOWN, DIR_RIGHT, DIR_UP, GAME_CHARS
 from snakepit.robot_snake import World
 
 
@@ -30,11 +30,15 @@ def parse_world(lines: List[str]) -> Tuple[List[List[Tuple[str, int]]], IntTuple
     return rows, IntTuple(size_x, size_y)
 
 
+REVERSE_CHARS = {v: k for k, v in GAME_CHARS.items()}
+
+
 def serialize_world(state: GameState) -> List[str]:
     """Serialize world data to lines"""
     def describe(x, y):
         char, color = state.world_get(IntTuple(x, y))
-        return '{}{}'.format(char, ' ' if color < 1 or color > 9 else str(color))
+
+        return '{}{}'.format(REVERSE_CHARS[char], ' ' if color < 1 or color > 9 else str(color))
     return [''.join(describe(x, y) for x in range(state.world_size.x)) for y in range(state.world_size.y)]
 
 
@@ -75,7 +79,7 @@ def test_decode_encode():
     def check(value):
         assert value == GameState._decode_value(GameState._encode_value(value))
 
-    for char in ' #@*$x+%123456789':
+    for char in GAME_CHARS.values():
         for color in range(8):
             check((char, color))
 
