@@ -55,6 +55,8 @@ DIR_LEFT = IntTuple(-1, 0)
 
 
 class Snake:
+    __slots__ = 'alive', 'head_pos', 'tail_pos', 'length', 'color', 'grow_uncertain', 'grow', 'score', 'head_history'
+
     def __init__(self, alive: bool, head_pos: IntTuple, tail_pos: IntTuple, color: int = 0):
         self.alive = alive
         self.head_pos = head_pos
@@ -104,6 +106,8 @@ GAME_CHARS = ''.join([RobotSnake.CH_VOID, RobotSnake.CH_STONE, RobotSnake.CH_HEA
 
 
 class GameState:
+    __slots__ = 'world_size', 'world', 'snakes_by_color', 'my_snake', 'enemy_snake'
+
     def __init__(self, world: Union[List[List[Tuple[str, int]]], 'GameState'], world_size: Optional[IntTuple] = None,
                  snakes_by_color: Optional[Dict[int, Snake]] = None):
         if isinstance(world, GameState):
