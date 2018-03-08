@@ -480,8 +480,15 @@ class MyRobotSnake(RobotSnake):
         return new_state, uncertainty
 
     @staticmethod
-    def bfs_food_and_partitions(state: GameState):
-        """Determine distance to nearest food and sum food and size in the current graph partition"""
+    def bfs_food_and_partitions(state: GameState, deadline: Optional[float]):
+        """Explore world and for each head direction, find out food score and graph partition size.
+
+        The food score is sum of food/distance for the positions that are closest from the head direction.
+        Partition size is number of reachable nodes in the partition from that size.
+
+        :param state: The game state
+        :param deadline: Optional deadline (as time.monotonic() value)
+        """
         visited_positions = set()
         positions_to_visit = deque()  # contains tuples (position, distance, food_value, initial_index)
         enqueued_positions = {}
@@ -501,10 +508,10 @@ class MyRobotSnake(RobotSnake):
                 enqueued_positions[neighbour] = len(initial_positions)
                 initial_positions.append(neighbour)
 
-        total_food = [0] * len(initial_positions)
+        food_score = [0.0] * len(initial_positions)  # sum of food/distance for initial position
         reachable_node_count = [0] * len(initial_positions)
-        distance_to_nearest = [None] * len(initial_positions)
         partition_index = list(range(len(initial_positions)))  # for union-find-set
+        fully_explored_distance = 0  # how far we have explored within the time limit
 
         def find(index):
             cur_index = index
@@ -519,16 +526,15 @@ class MyRobotSnake(RobotSnake):
             if root1 != root2:
                 partition_index[root2] = root1
 
-        while positions_to_visit:
+        while positions_to_visit and (deadline is None or time.monotonic() < deadline):
             position, distance, food_value, initial_index = positions_to_visit.popleft()
 
             if position in visited_positions:
                 continue
 
+            fully_explored_distance = distance - 1
             reachable_node_count[initial_index] += 1
-            total_food[initial_index] += food_value
-            if food_value > 0 and distance_to_nearest[initial_index] is None:
-                distance_to_nearest[initial_index] = distance
+            food_score[initial_index] += food_value/distance
 
             position_x, position_y = position
 
@@ -548,7 +554,17 @@ class MyRobotSnake(RobotSnake):
 
             visited_positions.add(position)
 
-        return distance_to_nearest, total_food, reachable_node_count
+        merged_reachable_node_count = [0] * len(initial_positions)
+
+        for initial_index in range(len(initial_positions)):
+            merged_reachable_node_count[find(initial_index)] += reachable_node_count[initial_index]
+
+        position_stats = []
+        for index, position in enumerate(initial_positions):
+            partition = find(index)
+            position_stats.append((position, merged_reachable_node_count[partition], food_score[index]))
+
+        return position_stats, fully_explored_distance
 
     @staticmethod
     def heuristic(state):
