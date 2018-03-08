@@ -488,6 +488,7 @@ class MyRobotSnake(RobotSnake):
 
         visited_positions = set()
         positions_to_visit = deque()  # contains tuples (position, distance, food_value)
+        enqueued_positions = set()
 
         # Initially, we need to visit any of the reachable neighbours of our snake head
         head_pos = state.my_snake.head_pos
@@ -500,6 +501,7 @@ class MyRobotSnake(RobotSnake):
                 else:
                     food_value = 0
                 positions_to_visit.append((neighbour, 1, food_value))
+                enqueued_positions.add(neighbour)
 
         while positions_to_visit:
             position, distance, food_value = positions_to_visit.popleft()
@@ -516,6 +518,8 @@ class MyRobotSnake(RobotSnake):
 
             for neighbour in ((position_x, position_y - 1), (position_x + 1, position_y),
                               (position_x, position_y + 1), (position_x - 1, position_y)):
+                if neighbour in enqueued_positions:
+                    continue
                 char, color = state.world_get2(neighbour)
                 if char not in MyRobotSnake.OCCUPIED_CHARS_ALL:
                     if char.isdigit():
@@ -523,6 +527,7 @@ class MyRobotSnake(RobotSnake):
                     else:
                         food_value = 0
                     positions_to_visit.append((neighbour, distance + 1, food_value))
+                    enqueued_positions.add(neighbour)
 
             visited_positions.add(position)
 
