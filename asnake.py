@@ -1,7 +1,6 @@
 import logging
 import random
 from collections import deque, defaultdict, namedtuple
-from itertools import product
 from typing import List, Optional, Dict, Tuple, Union, Callable, Any
 
 import time
