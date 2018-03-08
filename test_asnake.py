@@ -62,7 +62,7 @@ def test_serialize_world():
         [(' ', 0), ('$', 1), ('*', 1), ('@', 1)],
         [(' ', 0), (' ', 0), (' ', 0), (' ', 0)],
         [(' ', 0), (' ', 0), (' ', 0), (' ', 0)],
-    ], IntTuple(4, 4), {}))
+    ], IntTuple(4, 4), {}, 0))
     assert lines == [
         '        ',
         '  $1*1@1',
@@ -168,7 +168,7 @@ def test_observe_state_changes_grow_uncertain():
     snake1.grow_uncertain = True
     snake1.grow = 1
     snake1.score = 5
-    old_state = GameState(old_world, old_world_size, {1: snake1})
+    old_state = GameState(old_world, old_world_size, {1: snake1}, 0)
 
     world, world_size = parse_world([
         '        ',
@@ -207,7 +207,7 @@ def test_observe_state_changes_stop_growing():
     snake1.grow_uncertain = True
     snake1.grow = 0
     snake1.score = 5
-    old_state = GameState(old_world, old_world_size, {1: snake1})
+    old_state = GameState(old_world, old_world_size, {1: snake1}, 0)
 
     world, world_size = parse_world([
         '        ',
@@ -246,7 +246,7 @@ def test_observe_state_changes_eat():
     snake1.grow_uncertain = True
     snake1.grow = 0
     snake1.score = 5
-    old_state = GameState(old_world, old_world_size, {1: snake1})
+    old_state = GameState(old_world, old_world_size, {1: snake1}, 0)
 
     world, world_size = parse_world([
         '      @1',
@@ -285,7 +285,7 @@ def test_observe_state_changes_missed_frame():
     snake1.grow_uncertain = True
     snake1.grow = 0
     snake1.score = 5
-    old_state = GameState(old_world, old_world_size, {1: snake1})
+    old_state = GameState(old_world, old_world_size, {1: snake1}, 0)
 
     world, world_size = parse_world([
         '        ',
@@ -324,7 +324,7 @@ def test_observe_state_changes_missed_frame2():
     snake1.grow_uncertain = True
     snake1.grow = 0
     snake1.score = 5
-    old_state = GameState(old_world, old_world_size, {1: snake1})
+    old_state = GameState(old_world, old_world_size, {1: snake1}, 0)
 
     world, world_size = parse_world([
         '        ',
@@ -363,7 +363,7 @@ def test_observe_state_changes_appear():
     snake1.grow_uncertain = True
     snake1.grow = 1
     snake1.score = 5
-    old_state = GameState(old_world, old_world_size, {1: snake1})
+    old_state = GameState(old_world, old_world_size, {1: snake1}, 0)
 
     world, world_size = parse_world([
         '$2      ',
@@ -422,7 +422,7 @@ def test_observe_state_changes_die():
     old_snake2.grow_uncertain = True
     old_snake2.grow = 0
     old_snake2.score = 9
-    old_state = GameState(old_world, old_world_size, {1: old_snake1, 2: old_snake2})
+    old_state = GameState(old_world, old_world_size, {1: old_snake1, 2: old_snake2}, 0)
 
     world, world_size = parse_world([
         '%       ',
@@ -471,7 +471,7 @@ def test_advance_game_simple_move():
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
-    game_state = GameState(world, world_size, {1: snake1})
+    game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
@@ -503,7 +503,7 @@ def test_advance_game_simple_grow():
     snake1.grow_uncertain = False
     snake1.length = 3
     snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
-    game_state = GameState(world, world_size, {1: snake1})
+    game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
@@ -536,7 +536,7 @@ def test_advance_game_simple_eat():
     snake1.length = 3
     snake1.score = 4
     snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
-    game_state = GameState(world, world_size, {1: snake1})
+    game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
@@ -570,7 +570,7 @@ def test_advance_game_simple_eat_growing():
     snake1.length = 3
     snake1.score = 4
     snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
-    game_state = GameState(world, world_size, {1: snake1})
+    game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
@@ -604,7 +604,7 @@ def test_advance_game_simple_crash_wall():
     snake1.length = 3
     snake1.score = 4
     snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
-    game_state = GameState(world, world_size, {1: snake1})
+    game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_RIGHT})
@@ -638,7 +638,7 @@ def test_advance_game_simple_crash_dead_tail():
     snake1.length = 3
     snake1.score = 4
     snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
-    game_state = GameState(world, world_size, {1: snake1})
+    game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
@@ -672,7 +672,7 @@ def test_advance_game_simple_crash_dead_body():
     snake1.length = 3
     snake1.score = 4
     snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
-    game_state = GameState(world, world_size, {1: snake1})
+    game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
@@ -706,7 +706,7 @@ def test_advance_game_simple_crash_dead_head():
     snake1.length = 3
     snake1.score = 4
     snake1.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
-    game_state = GameState(world, world_size, {1: snake1})
+    game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN})
@@ -740,7 +740,7 @@ def test_advance_game_simple_suicide():
     snake1.length = 5
     snake1.score = 4
     snake1.head_history = deque([IntTuple(3, 2), IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)])
-    game_state = GameState(world, world_size, {1: snake1})
+    game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP})
@@ -774,7 +774,7 @@ def test_advance_game_simple_tail_grow_suicide():
     snake1.length = 6
     snake1.score = 4
     snake1.head_history = deque([IntTuple(2, 2), IntTuple(3, 2), IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)])
-    game_state = GameState(world, world_size, {1: snake1})
+    game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP})
@@ -809,7 +809,7 @@ def test_advance_game_simple_tail_chase():
     snake1.length = 6
     snake1.score = 4
     snake1.head_history = deque([IntTuple(2, 2), IntTuple(3, 2), IntTuple(3, 1), IntTuple(2, 1), IntTuple(1, 1)])
-    game_state = GameState(world, world_size, {1: snake1})
+    game_state = GameState(world, world_size, {1: snake1}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP})
@@ -852,7 +852,7 @@ def test_advance_game_double_move():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP, 2: DIR_DOWN})
@@ -902,7 +902,7 @@ def test_advance_game_double_grow_one():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP, 2: DIR_DOWN})
@@ -952,7 +952,7 @@ def test_advance_game_double_grow_two():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP, 2: DIR_DOWN})
@@ -1002,7 +1002,7 @@ def test_advance_game_double_grow_both():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP, 2: DIR_DOWN})
@@ -1052,7 +1052,7 @@ def test_advance_game_double_crash_to_dying_body():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(1, 2), IntTuple(0, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_RIGHT, 2: DIR_UP})
@@ -1102,7 +1102,7 @@ def test_advance_game_double_crash_to_dying_body2():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_RIGHT})
@@ -1152,7 +1152,7 @@ def test_advance_game_double_crash_to_dying_tail():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(0, 2), IntTuple(0, 3)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_RIGHT, 2: DIR_UP})
@@ -1202,7 +1202,7 @@ def test_advance_game_double_crash_to_dying_tail2():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_RIGHT})
@@ -1252,7 +1252,7 @@ def test_advance_game_double_crash_to_dying_head():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_RIGHT, 2: DIR_UP})
@@ -1302,7 +1302,7 @@ def test_advance_game_double_crash_to_dying_head2():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_RIGHT})
@@ -1352,7 +1352,7 @@ def test_advance_game_double_frontal_crash():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_UP})
@@ -1402,7 +1402,7 @@ def test_advance_game_double_frontal_crash2():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 1), IntTuple(1, 1)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_UP, 2: DIR_DOWN})
@@ -1452,7 +1452,7 @@ def test_advance_game_double_frontal_crash3():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_UP})
@@ -1502,7 +1502,7 @@ def test_advance_game_double_frontal_crash3_eat():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_UP})
@@ -1552,7 +1552,7 @@ def test_advance_game_double_tail_grow_kill():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2), IntTuple(1, 1)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_DOWN})
@@ -1602,7 +1602,7 @@ def test_advance_game_double_tail_chase():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2), IntTuple(1, 1)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_DOWN})
@@ -1652,7 +1652,7 @@ def test_advance_game_double_tail_chase_loop():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(2, 2), IntTuple(1, 2), IntTuple(1, 1)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_UP})
@@ -1703,7 +1703,7 @@ def test_advance_game_double_tail_chase_frontal_crash():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(0, 2), IntTuple(0, 3)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_RIGHT})
@@ -1755,7 +1755,7 @@ def test_advance_game_double_tail_chase_frontal_crash_grow():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(0, 2), IntTuple(0, 3)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_RIGHT})
@@ -1806,7 +1806,7 @@ def test_advance_game_double_body_kill():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(1, 1), IntTuple(0, 1)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_DOWN})
@@ -1856,7 +1856,7 @@ def test_advance_game_double_body_kill2():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(0, 1), IntTuple(0, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_DOWN})
@@ -1906,7 +1906,7 @@ def test_advance_game_double_mutual_body_kill():
     snake2.score = 6
     snake2.head_history = deque([IntTuple(1, 2), IntTuple(2, 2), IntTuple(3, 2)])
 
-    game_state = GameState(world, world_size, {1: snake1, 2: snake2})
+    game_state = GameState(world, world_size, {1: snake1, 2: snake2}, 0)
 
     robot = MyRobotSnake(World(world_size.x, world_size.y, world))
     new_state, uncertainty = robot.advance_game(game_state, {1: DIR_DOWN, 2: DIR_UP})
