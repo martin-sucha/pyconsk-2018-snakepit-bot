@@ -161,6 +161,20 @@ class GameState:
             return RobotSnake.CH_STONE, 0
         return self._decode_value(self.world[position.y * self.world_size.x + position.x])
 
+    def world_get2(self, position: Tuple[int, int]) -> Tuple[str, int]:
+        """Get the state of world at given position.
+
+        This does bounds checks and returns stones for positions outside of the play area to simplify the code.
+
+        :return tuple of (world char, color)
+        """
+        position_x, position_y = position
+        if position_x < 0 or position_x >= self.world_size.x:
+            return RobotSnake.CH_STONE, 0
+        if position_y < 0 or position_y >= self.world_size.y:
+            return RobotSnake.CH_STONE, 0
+        return self._decode_value(self.world[position_y * self.world_size.x + position_x])
+
     def world_set(self, position: IntTuple, value: Tuple[str, int]):
         """Set the state of world at given position.
 
@@ -472,8 +486,10 @@ class MyRobotSnake(RobotSnake):
         positions_to_visit = deque()  # contains tuples (position, distance, food_value)
 
         # Initially, we need to visit any of the reachable neighbours of our snake head
-        for neighbour in neighbours(state.my_snake.head_pos):
-            char, color = state.world_get(neighbour)
+        head_pos = state.my_snake.head_pos
+        for neighbour in ((head_pos.x, head_pos.y - 1), (head_pos.x + 1, head_pos.y),
+                          (head_pos.x, head_pos.y + 1), (head_pos.x - 1, head_pos.y)):
+            char, color = state.world_get2(neighbour)
             if char not in MyRobotSnake.OCCUPIED_CHARS_ALL:
                 if char.isdigit():
                     food_value = int(char)
@@ -492,8 +508,11 @@ class MyRobotSnake(RobotSnake):
             if food_value > 0 and distance_to_nearest is None:
                 distance_to_nearest = distance
 
-            for neighbour in neighbours(position):
-                char, color = state.world_get(neighbour)
+            position_x, position_y = position
+
+            for neighbour in ((position_x, position_y - 1), (position_x + 1, position_y),
+                              (position_x, position_y + 1), (position_x - 1, position_y)):
+                char, color = state.world_get2(neighbour)
                 if char not in MyRobotSnake.OCCUPIED_CHARS_ALL:
                     if char.isdigit():
                         food_value = int(char)
