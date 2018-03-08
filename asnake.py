@@ -682,10 +682,13 @@ class MyRobotSnake(RobotSnake):
         # the frame rate is 9 at the beginning and goes up to 60 later
         # so we can run deeper searches in the first 1024 frames (we use 1000 to have some buffer)
         # the deadline is 3/4 the frame time, to allow for replies, etc.
+
         if self.frame_no < 0:
-            tick_deadline = tick_start_time + 0.75 * (1 / 9.0)
+            tick_time_timit = 0.75 * (1 / 9.0)
         else:
-            tick_deadline = tick_start_time + 0.75 * (1 / 60.0)
+            tick_time_limit = 0.75 * (1 / 60.0)
+        tick_deadline = tick_start_time + tick_time_limit
+        logger.info('time limit: {}ms'.format(tick_time_limit*1000))
 
         if self.old_state:
             for snake in self.old_state.snakes_by_color.values():
