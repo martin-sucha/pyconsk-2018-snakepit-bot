@@ -627,7 +627,8 @@ class MyRobotSnake(RobotSnake):
         depth = 1
         while True:
             try:
-                score, move, explored_states = self.search_move_space(0, depth, game_state, deadline, None, bfs)
+                score, move, explored_states, explored_all = self.search_move_space(0, depth, game_state, deadline,
+                                                                                    None, bfs)
             except SearchTimedOut:
                 logger.info('Search timed out in depth {}'.format(depth))
                 return best_score, best_move, total_explored_states
@@ -636,6 +637,8 @@ class MyRobotSnake(RobotSnake):
                 best_move = move
                 best_score = score
                 depth += 1
+                if explored_all:
+                    return best_score, best_move, total_explored_states
 
     def search_move_space(self,
                           depth: int,
@@ -643,14 +646,15 @@ class MyRobotSnake(RobotSnake):
                           game_state: GameState,
                           deadline: Optional[float],
                           bfs_branch: Optional[BFSPosition],
-                          bfs: BFSResult) -> Tuple[Any, Optional[XY], int]:
+                          bfs: BFSResult) -> Tuple[Any, Optional[XY], int, bool]:
         moves = [DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT]
         if depth == max_depth or not game_state.my_snake.alive:
-            return self.heuristic(game_state, bfs, bfs_branch, depth), None, 0
+            return self.heuristic(game_state, bfs, bfs_branch, depth), None, 0, True
 
         best_move = None
         best_score = None
         explored_states = 0
+        explored_all = True
         for my_move in moves:
             my_direction = game_state.my_snake.direction
             if my_direction is not None and my_move.x == -my_direction.x and my_move.y == -my_direction.y:
@@ -687,10 +691,11 @@ class MyRobotSnake(RobotSnake):
                     if uncertainty:
                         score = self.heuristic(new_state, bfs, move_bfs_branch, depth)
                     else:
-                        score, _, explored_substates = self.search_move_space(depth + 1, max_depth, new_state,
-                                                                              deadline,
-                                                                              move_bfs_branch, bfs)
+                        score, _, explored_substates, sub_explored_all = self.search_move_space(
+                            depth + 1, max_depth, new_state, deadline, move_bfs_branch, bfs)
                         explored_states += explored_substates
+                        if not sub_explored_all:
+                            explored_all = False
 
                     if worst_enemy_move is None or score < worst_enemy_score:
                         worst_enemy_move = enemy_move
@@ -710,15 +715,16 @@ class MyRobotSnake(RobotSnake):
                 if uncertainty:
                     score = self.heuristic(new_state, bfs, move_bfs_branch, depth)
                 else:
-                    score, _, explored_substates = self.search_move_space(depth + 1, max_depth, new_state,
-                                                                          deadline,
-                                                                          move_bfs_branch, bfs)
+                    score, _, explored_substates, sub_explored_all = self.search_move_space(
+                        depth + 1, max_depth, new_state, deadline, move_bfs_branch, bfs)
                     explored_states += explored_substates
+                    if not sub_explored_all:
+                        explored_all = False
                 if best_move is None or score > best_score:
                     best_move = my_move
                     best_score = score
 
-        return best_score, best_move, explored_states
+        return best_score, best_move, explored_states, explored_all
 
     def next_direction(self, initial=False):
         """
