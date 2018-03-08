@@ -1,6 +1,6 @@
 import logging
 import random
-from collections import deque, defaultdict
+from collections import deque, defaultdict, namedtuple
 from itertools import product
 from typing import List, Optional, Dict, Tuple, Union, Callable, Any
 
@@ -245,6 +245,10 @@ class GameState:
 
 class SearchTimedOut(Exception):
     pass
+
+
+BFSPosition = namedtuple('BFSPosititon', ('position', 'partition_size', 'food_score'))
+BFSResult = namedtuple('BFSResult', ('position_stats', 'fully_explored_distance'))
 
 
 class MyRobotSnake(RobotSnake):
@@ -562,14 +566,18 @@ class MyRobotSnake(RobotSnake):
         position_stats = []
         for index, position in enumerate(initial_positions):
             partition = find(index)
-            position_stats.append((position, merged_reachable_node_count[partition], food_score[index]))
+            position_stats.append(BFSPosition(position, merged_reachable_node_count[partition], food_score[index]))
 
-        return position_stats, fully_explored_distance
+        return BFSResult(position_stats, fully_explored_distance)
 
     @staticmethod
-    def heuristic(state):
+    def heuristic(state: GameState, bfs: BFSResult, bfs_branch: Optional[BFSPosition], depth: int):
         """Larger return values are better for my_snake"""
+        if bfs_branch is None:
+            bfs_branch = BFSPosition((0, 0), 0, 0.0)
+
         me_lives = state.my_snake is not None and state.my_snake.alive
+        my_length = state.my_snake.length if state.my_snake is not None else 0
         enemy_lives = state.enemy_snake is not None and state.enemy_snake.alive
         my_score = 0 if state.my_snake is None else state.my_snake.score
         enemy_score = 0 if state.enemy_snake is None else state.enemy_snake.score
@@ -580,8 +588,12 @@ class MyRobotSnake(RobotSnake):
             liveness = 0
         elif me_lives:
             liveness = 1
+            if my_score > enemy_score:  # I win
+                game_result = 1
         elif enemy_lives:
             liveness = -1
+            if my_score < enemy_score:  # I lose
+                game_result = -1
         else:
             liveness = 0
             # game over
@@ -594,17 +606,27 @@ class MyRobotSnake(RobotSnake):
 
         score = my_score - enemy_score
 
-        return game_result, liveness, score
+        if bfs.fully_explored_distance >= depth:
+            entering_small_partition = -1 if bfs_branch.partition_size < my_length else 0
+        else:
+            entering_small_partition = 0
 
-    def iterative_search_move_space(self, game_state: GameState, heuristic: Callable[[GameState], Any],
-                                    deadline: Optional[float]) -> Tuple[Any, Optional[IntTuple], int]:
+        return (game_result, liveness, entering_small_partition, score, bfs_branch.food_score,
+                bfs_branch.partition_size, depth if game_result < 0 or liveness < 0 else -depth)
+
+    def iterative_search_move_space(self,
+                                    game_state: GameState,
+                                    heuristic: Callable[[GameState, Optional[BFSPosition]], Any],
+                                    deadline: Optional[float],
+                                    bfs: BFSResult) -> Tuple[Any, Optional[IntTuple], int]:
         best_move = None
         best_score = None
         total_explored_states = 0
         depth = 1
         while True:
             try:
-                score, move, explored_states = self.search_move_space(depth, game_state, heuristic, deadline)
+                score, move, explored_states = self.search_move_space(0, depth, game_state, heuristic, deadline, None,
+                                                                      bfs)
             except SearchTimedOut:
                 logger.warning('Search timed out in depth {}'.format(depth))
                 return best_score, best_move, total_explored_states
@@ -614,11 +636,17 @@ class MyRobotSnake(RobotSnake):
                 best_score = score
                 depth += 1
 
-    def search_move_space(self, depth: int, game_state: GameState, heuristic: Callable[[GameState], Any],
-                          deadline: Optional[float]) -> Tuple[Any, Optional[IntTuple], int]:
+    def search_move_space(self,
+                          depth: int,
+                          max_depth: int,
+                          game_state: GameState,
+                          heuristic: Callable[[GameState, Optional[BFSPosition]], Any],
+                          deadline: Optional[float],
+                          bfs_branch: Optional[BFSPosition],
+                          bfs: BFSResult) -> Tuple[Any, Optional[IntTuple], int]:
         moves = [DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT]
-        if depth == 0 or not game_state.my_snake.alive:
-            return heuristic(game_state), None, 0
+        if depth == max_depth or not game_state.my_snake.alive:
+            return heuristic(game_state, bfs, bfs_branch, depth), None, 0
 
         best_move = None
         best_score = None
@@ -627,6 +655,19 @@ class MyRobotSnake(RobotSnake):
             my_direction = game_state.my_snake.direction
             if my_direction is not None and my_move.x == -my_direction.x and my_move.y == -my_direction.y:
                 continue  # can't move backwards
+
+            if bfs_branch is not None:
+                move_bfs_branch = bfs_branch
+            else:
+                next_head_pos = game_state.my_snake.head_pos + my_move
+                logger.info('Next head: {}'.format(next_head_pos))
+                for branch in bfs.position_stats:
+                    logger.info('Branch: {}'.format(branch))
+                    if branch.position == (next_head_pos.x, next_head_pos.y):
+                        move_bfs_branch = branch
+                        break
+                else:
+                    move_bfs_branch = BFSPosition((next_head_pos.x, next_head_pos.y), 0, 0.0)
 
             if game_state.enemy_snake and game_state.enemy_snake.alive:
                 enemy_direction = game_state.enemy_snake.direction
@@ -646,14 +687,18 @@ class MyRobotSnake(RobotSnake):
                     new_state, uncertainty = self.advance_game(game_state, snake_directions)
                     if uncertainty:
                         logger.info('uncertain')
-                        score = heuristic(new_state)
+                        score = heuristic(new_state, bfs, move_bfs_branch, depth)
                     else:
-                        score, _, explored_substates = self.search_move_space(depth - 1, new_state, heuristic, deadline)
+                        score, _, explored_substates = self.search_move_space(depth + 1, max_depth, new_state,
+                                                                              heuristic, deadline,
+                                                                              move_bfs_branch, bfs)
                         explored_states += explored_substates
 
                     if worst_enemy_move is None or score < worst_enemy_score:
                         worst_enemy_move = enemy_move
                         worst_enemy_score = score
+
+                logger.info('{} {} {}'.format(depth, worst_enemy_move, worst_enemy_score))
                 if best_move is None or worst_enemy_score > best_score:
                     best_move = my_move
                     best_score = worst_enemy_score
@@ -667,9 +712,11 @@ class MyRobotSnake(RobotSnake):
                 new_state, uncertainty = self.advance_game(game_state, snake_directions)
                 if uncertainty:
                     logger.info('uncertain')
-                    score = heuristic(new_state)
+                    score = heuristic(new_state, bfs, move_bfs_branch, depth)
                 else:
-                    score, _, explored_substates = self.search_move_space(depth - 1, new_state, heuristic, deadline)
+                    score, _, explored_substates = self.search_move_space(depth + 1, max_depth, new_state,
+                                                                          heuristic, deadline,
+                                                                          move_bfs_branch, bfs)
                     explored_states += explored_substates
                 if best_move is None or score > best_score:
                     best_move = my_move
@@ -693,8 +740,8 @@ class MyRobotSnake(RobotSnake):
         More information can be found in the Snake documentation.
         """
         tick_start_time = time.monotonic()
-        logger.info('------------- tick start')
         self.frame_no += 1
+        logger.info('------------- tick start {}'.format(self.frame_no))
         # the frame rate is 9 at the beginning and goes up to 60 later
         # so we can run deeper searches in the first 1024 frames (we use 1000 to have some buffer)
         # the deadline is 3/4 the frame time, to allow for replies, etc.
@@ -720,15 +767,43 @@ class MyRobotSnake(RobotSnake):
 
         logger.info('Selecting next move')
 
+        logger.info('Running BFS')
+        start_time = time.monotonic()
+        bfs = self.bfs_food_and_partitions(game_state, start_time + tick_time_limit / 4)
+        end_time = time.monotonic()
+        logger.info('BFS took {} ms, explored to distance {}'.format((end_time - start_time) * 1000,
+                                                                     bfs.fully_explored_distance))
+
         start_time = time.monotonic()
         best_score, best_move, explored_states = self.iterative_search_move_space(game_state,
                                                                                   self.heuristic,
-                                                                                  tick_deadline)
+                                                                                  tick_deadline,
+                                                                                  bfs)
         end_time = time.monotonic()
+        logger.info('Iterative search took {} ms, explored {} states'.format((end_time - start_time) * 1000,
+                                                                             explored_states))
 
         if best_move is None:
-            # Something bad has happened. At least try to fallback to random
+            # Something bad has happened as we could not search depth 1. At least try to use some simple fallback.
             logger.error('No possible moves found. Using fallback strategy.')
+            if len(bfs.position_stats) > 0:
+                my_length = game_state.my_snake.length if game_state.my_snake is not None else 0
+
+                options = []
+                for bfs_pos in bfs.position_stats:
+                    entering_small_partition = -1 if bfs_pos.partition_size < my_length else 0
+                    heur = (entering_small_partition, bfs_pos.food_score, bfs_pos.partition_size)
+                    options.append((heur, bfs_pos.position))
+                best = max(options, key=lambda x: x[0])
+                best_move = IntTuple(best[1][0], best[1][1])
+            else:
+                # try to follow a tail, we have no other option
+                for direction in DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT:
+                    dir_char, dir_color = game_state.world_get(game_state.my_snake.head_pos + direction)
+                    if dir_char == RobotSnake.CH_TAIL:
+                        best_move = direction
+                        break
+
             non_dying_moves = []
             my_direction = game_state.my_snake.direction
             for direction in DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT:
@@ -746,8 +821,6 @@ class MyRobotSnake(RobotSnake):
                 non_dying_moves.sort(key=lambda i: i[0])
                 best_move = non_dying_moves[-1][1]
 
-        logger.info('Decision took {} milliseconds, explored {} states'.format((end_time-start_time)*1000,
-                                                                               explored_states))
         logger.info('My position: ' + repr(game_state.my_snake.head_pos))
         logger.info('Next move {!r} score {!r}'.format(best_move, best_score))
 
