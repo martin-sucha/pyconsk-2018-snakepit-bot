@@ -659,9 +659,7 @@ class MyRobotSnake(RobotSnake):
             else:
                 next_head_pos = XY(game_state.my_snake.head_pos.x + my_move.x,
                                    game_state.my_snake.head_pos.y + my_move.y)
-                logger.info('Next head: {}'.format(next_head_pos))
                 for branch in bfs.position_stats:
-                    logger.info('Branch: {}'.format(branch))
                     if branch.position == (next_head_pos.x, next_head_pos.y):
                         move_bfs_branch = branch
                         break
@@ -685,7 +683,6 @@ class MyRobotSnake(RobotSnake):
                     explored_states += 1
                     new_state, uncertainty = self.advance_game(game_state, snake_directions)
                     if uncertainty:
-                        logger.info('uncertain')
                         score = heuristic(new_state, bfs, move_bfs_branch, depth)
                     else:
                         score, _, explored_substates = self.search_move_space(depth + 1, max_depth, new_state,
@@ -697,7 +694,6 @@ class MyRobotSnake(RobotSnake):
                         worst_enemy_move = enemy_move
                         worst_enemy_score = score
 
-                logger.info('{} {} {}'.format(depth, worst_enemy_move, worst_enemy_score))
                 if best_move is None or worst_enemy_score > best_score:
                     best_move = my_move
                     best_score = worst_enemy_score
@@ -710,7 +706,6 @@ class MyRobotSnake(RobotSnake):
                 explored_states += 1
                 new_state, uncertainty = self.advance_game(game_state, snake_directions)
                 if uncertainty:
-                    logger.info('uncertain')
                     score = heuristic(new_state, bfs, move_bfs_branch, depth)
                 else:
                     score, _, explored_substates = self.search_move_space(depth + 1, max_depth, new_state,
@@ -755,7 +750,7 @@ class MyRobotSnake(RobotSnake):
         if self.old_state:
             for snake in self.old_state.snakes_by_color.values():
                 logger.info('old {!r} {!r} {} {}'.format(snake, snake.score, 'alive' if snake.alive else 'dead',
-                                                     snake.head_history))
+                                                         snake.head_history))
         start_time = time.monotonic()
         game_state = self.observe_state_changes(self.old_state, self.world, self.color)
         end_time = time.monotonic()
