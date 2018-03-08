@@ -626,7 +626,7 @@ class MyRobotSnake(RobotSnake):
                 score, move, explored_states = self.search_move_space(0, depth, game_state, heuristic, deadline, None,
                                                                       bfs)
             except SearchTimedOut:
-                logger.warning('Search timed out in depth {}'.format(depth))
+                logger.info('Search timed out in depth {}'.format(depth))
                 return best_score, best_move, total_explored_states
             else:
                 total_explored_states += explored_states
