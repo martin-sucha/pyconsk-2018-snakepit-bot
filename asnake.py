@@ -737,8 +737,8 @@ class MyRobotSnake(RobotSnake):
         # so we can run deeper searches in the first 1024 frames (we use 1000 to have some buffer)
         # the deadline is 3/4 the frame time, to allow for replies, etc.
 
-        if self.frame_no < 0:
-            tick_time_timit = 0.75 * (1 / 9.0)
+        if self.frame_no < 1024:
+            tick_time_limit = 0.75 * (1 / 9.0)
         else:
             tick_time_limit = 0.75 * (1 / 60.0)
         tick_deadline = tick_start_time + tick_time_limit
