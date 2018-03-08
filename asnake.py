@@ -235,6 +235,8 @@ class SearchTimedOut(Exception):
 
 BFSPosition = namedtuple('BFSPosititon', ('position', 'partition_size', 'food_score'))
 BFSResult = namedtuple('BFSResult', ('position_stats', 'fully_explored_distance'))
+Heuristic = namedtuple('Heuristic', ('game_result', 'liveness', 'entering_small_partition', 'score', 'food_score',
+                                     'partition_size', 'depth'))
 
 
 class MyRobotSnake(RobotSnake):
@@ -612,8 +614,8 @@ class MyRobotSnake(RobotSnake):
         else:
             entering_small_partition = 0
 
-        return (game_result, liveness, entering_small_partition, score, bfs_branch.food_score,
-                bfs_branch.partition_size, depth if game_result < 0 or liveness < 0 else -depth)
+        return Heuristic(game_result, liveness, entering_small_partition, score, bfs_branch.food_score,
+                         bfs_branch.partition_size, depth if game_result < 0 or liveness < 0 else -depth)
 
     def iterative_search_move_space(self,
                                     game_state: GameState,
