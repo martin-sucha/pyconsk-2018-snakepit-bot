@@ -602,6 +602,9 @@ class MyRobotSnake(RobotSnake):
             else:
                 game_result = 0  # draw
 
+        if state.enemy_snake is None:
+            game_result = 0  # enemy snake has not connected yet
+
         score = my_score - enemy_score
 
         if bfs.fully_explored_distance >= depth:
