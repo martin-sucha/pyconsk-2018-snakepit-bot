@@ -30,5 +30,5 @@ git clone https://github.com/martin-sucha/pyconsk-2018-snakepit-bot
 ```
 
 2. Install snakepit-game from https://github.com/pyconsk/snakepit-game
-3. Run `./snakepit-game/bin/run_robot.py --code "pyconsk-2018-snakepit-bot/asnake.py"
+3. Run `./snakepit-game/bin/run_robot.py --code "pyconsk-2018-snakepit-bot/asnake.py"`
 
