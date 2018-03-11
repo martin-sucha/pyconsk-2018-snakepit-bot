@@ -2,7 +2,7 @@ Snake bot
 ==================================
 
 The code tagged here as `v1.0.0` was used to run snake robot called `a` during
-the [PyCon SK 2018 programming contest](https://github.com/pyconsk/snakepit-game).
+the [PyCon SK 2018 programming contest](https://github.com/pyconsk/snakepit-game) and finished at second place.
 
 Features:
 
@@ -19,6 +19,7 @@ Possible improvements:
 - modify the BFS to find out whether next move will partition the space
   and try to avoid it if it does - this should make the snake not to trap itself
 - use alpha-beta pruning or another pruning strategy to optimize the minimax search
+- cache game states when running the iterative search (currently some states are recomputed)
 
 Setup
 -----
